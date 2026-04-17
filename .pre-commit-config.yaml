@@ -9,7 +9,7 @@ repos:
     rev: v1.11.2
     hooks:
       - id: mypy
-        additional_dependencies: [pydantic, types-PyYAML]
+        additional_dependencies: [pydantic, types-PyYAML, numpy>=2.1]
         args: [--strict, --ignore-missing-imports]
         files: ^kiki_flow_core/
   - repo: local
