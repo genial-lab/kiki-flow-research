@@ -54,5 +54,5 @@ disallow_untyped_decorators = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-v --strict-markers --cov=kiki_flow_core --cov-report=term-missing"
+addopts = "-v --strict-markers --cov=kiki_flow_core --cov-report=term-missing --import-mode=importlib"
 markers = ["slow: tests > 1s", "golden: numerical regression tests"]
