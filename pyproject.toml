@@ -16,6 +16,7 @@ dependencies = [
     "pyyaml>=6.0",
     "prometheus-client>=0.20",
     "scikit-learn>=1.8.0",
+    "safetensors>=0.7.0",
 ]
 
 [project.optional-dependencies]
