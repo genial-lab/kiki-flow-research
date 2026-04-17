@@ -26,6 +26,7 @@ dev = [
     "mypy>=1.10",
     "pre-commit>=3.7",
     "matplotlib>=3.8",
+    "types-PyYAML>=6.0",
 ]
 
 [build-system]
