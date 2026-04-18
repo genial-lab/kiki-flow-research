@@ -373,8 +373,14 @@ Headline numbers (mean $\pm$ std over 5 seeds):
   \item \textsc{cola}: immediate $0.768 \pm 0.032$, final
     $0.889 \pm 0.039$, \textbf{positive transfer} ($+0.121$ on
     average, zero forgetting on every seed).
-  \item \textsc{boolq}: $0.565 \pm 0.023$ throughout; 500 steps is
-    below learning threshold at this LoRA rank.
+  \item \textsc{boolq}: $0.565 \pm 0.023$ throughout; we verified
+    that this is a \emph{data-and-capacity} limit, not a compute
+    limit — a 2000-step run on 500 samples (seed 0) drives the
+    training loss to $4 {\times} 10^{-6}$ (full memorization)
+    while eval accuracy only moves to $0.592$, i.e.\ the LoRA
+    memorizes the 500 training samples without generalizing.
+    Richer adapters (higher rank) or more training data would
+    be needed for \textsc{boolq} to escape chance.
 \end{itemize}
 
 The pattern mirrors the distributional proxy: the first task in the

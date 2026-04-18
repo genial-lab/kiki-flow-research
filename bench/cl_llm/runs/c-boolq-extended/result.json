@@ -1,0 +1,10 @@
+{
+  "task": "syn_boolq",
+  "n_steps": 2000,
+  "n_samples": 600,
+  "seed": 0,
+  "train_loss_final": 3.855e-06,
+  "eval_accuracy": 0.5916666666666667,
+  "wall_time_s_train": 271.4,
+  "interpretation": "Training loss collapses to 4e-6 (memorization of the 500 training samples); eval accuracy only moves from 0.565 (500 steps) to 0.592 (2000 steps). BoolQ is data-limited and adapter-capacity-limited at rank 8, not compute-limited — more steps just overfit."
+}

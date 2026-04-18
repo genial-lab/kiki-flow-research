@@ -89,6 +89,13 @@ forgetting under pressure of later tasks, positive transfer mid-sequence.
 Source: `bench/cl_llm/runs/e2_5seeds_summary.json`. Reproduce via
 `docs/superpowers/runbooks/real-cl-bench.md`.
 
+**BoolQ caveat (measured).** A 2000-step follow-up on seed 0 drives
+training loss to 4 × 10⁻⁶ (total memorization of 500 samples) while
+eval accuracy only moves from 0.565 to 0.592 — BoolQ is data and
+adapter-capacity limited at rank 8, not compute limited. More steps
+overfit rather than help. Source:
+`bench/cl_llm/runs/c-boolq-extended/result.json`.
+
 ## Fast-vs-rigorous agreement
 
 Reduced setup: grid 16, 500 particles, 20 slow steps, 5 seeds.
