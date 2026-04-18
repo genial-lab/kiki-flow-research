@@ -123,49 +123,64 @@ under strict mypy and ruff.
 \section{Experiments}
 \label{sec:exp}
 
-\subsection{Phase portrait}
+All experiments run two variants of the JKO flow: a \emph{fast} path with
+projected gradient descent only (no Wasserstein proximal step) and a
+\emph{rigorous} path with the full JKO scheme using POT entropic Sinkhorn
+$(\varepsilon = 0.01)$. Both paths use the MLX particle simulator on
+Apple Silicon.
+
+\subsection{Phase portrait (5 seeds)}
 Figure \ref{fig:phase} shows the trajectory of
 $(\bar\rho_{\text{phono}}, \bar\rho_{\text{lex}})$ over 100 slow steps
-on seed 0. The trajectory concentrates in the low-$\rho_{\text{phono}}$,
-high-$\rho_{\text{lex}}$ quadrant after $\tau \geq 30$, indicating
-spontaneous specialization.
+for five independent seeds. Despite identical priors and couplings,
+the trajectories explore distinct regions of the species simplex,
+illustrating the metastability of the consolidated state.
+
 \begin{figure}[h]
   \centering
-  \includegraphics[width=0.5\textwidth]{figures/fig1_phase_seed0.png}
-  \caption{Phase portrait, seed 0.}
+  \begin{minipage}{0.32\textwidth}
+    \includegraphics[width=\textwidth]{figures/fig1_phase_seed0.png}
+  \end{minipage}
+  \begin{minipage}{0.32\textwidth}
+    \includegraphics[width=\textwidth]{figures/fig1_phase_seed1.png}
+  \end{minipage}
+  \begin{minipage}{0.32\textwidth}
+    \includegraphics[width=\textwidth]{figures/fig1_phase_seed2.png}
+  \end{minipage}\\
+  \begin{minipage}{0.32\textwidth}
+    \includegraphics[width=\textwidth]{figures/fig1_phase_seed3.png}
+  \end{minipage}
+  \begin{minipage}{0.32\textwidth}
+    \includegraphics[width=\textwidth]{figures/fig1_phase_seed4.png}
+  \end{minipage}
+  \caption{Phase portraits of $(\bar\rho_{\text{phono}}, \bar\rho_{\text{lex}})$
+    across five independent seeds. Rigorous-JKO variant.}
   \label{fig:phase}
 \end{figure}
 
-\subsection{Free-energy decay}
-Across all five seeds, $F[\rho^\tau]$ decreases monotonically after an
-initial transient, confirming the JKO scheme's descent property on our
-non-convex $F$. See Figure \ref{fig:fdecay}.
-\begin{figure}[h]
-  \centering
-  \includegraphics[width=0.5\textwidth]{figures/fig2_f_decay.png}
-  \caption{Free energy decay.}
-  \label{fig:fdecay}
-\end{figure}
-
-\subsection{Turing patterns}
-Figure \ref{fig:turing} shows the final-$\tau$ spatial profile for each
-species. Cross-diffusion produces visible inter-species pattern formation.
-
-\subsection{Sinkhorn bias}
-Figure \ref{fig:kleps} sweeps $\varepsilon$ over three decades and
-measures $\mathrm{KL}(\rho^{\tau+1}_{\varepsilon} \| \rho^{\tau+1}_{0.001})$.
-The bias scales as expected with $\varepsilon$, validating our choice of
-$\varepsilon = 0.01$ as a compromise between speed and fidelity.
-
-\subsection{Continual-learning gap}
-Figure \ref{fig:clgap} reports accuracy on three held-out tasks with and
-without T2 consolidation. Consolidation yields
-$+15\,\%$ mean absolute accuracy (std $\pm 3\,\%$ over five seeds).
+\subsection{Fast vs rigorous runtime}
+Fast path: 5 seeds $\times$ 100 slow $\times$ 10\,000 particles completes
+in \textbf{2\,min 31\,s} on a GrosMac M5. Rigorous path (with POT Sinkhorn
+prox) completes in \textbf{84\,min} on the same hardware
+(35\,$\times$ slower per JKO step). Trajectories from both paths are
+qualitatively similar (by visual inspection of Figure \ref{fig:phase});
+a quantitative comparison of the KL divergence between their final
+distributions is left to the sensitivity study in the companion repository.
 
 \subsection{Deployment latency}
-The T3 surrogate distilled from T2 trajectories reaches p50 = 0.04\,ms
-and p99 = 0.06\,ms on an Apple M5 Mac Studio (stub text encoder,
-500 queries). Adding the MiniLM encoder adds $\approx 3\,$ms.
+The T3 surrogate distilled from T2 rigorous-run trajectories reaches
+p50 = 0.04\,ms and p99 = 0.06\,ms on the same machine (stub text
+encoder, 500 queries, warm-up excluded). Adding the MiniLM encoder adds
+$\approx 3$\,ms, keeping the end-to-end latency below a 10\,ms p50 budget
+comfortably. See the companion repository's \texttt{bench/T3\_latency.jsonl}
+for the full record.
+
+\paragraph{Deferred figures.}
+A full experimental suite (free-energy decay curves, Turing-pattern
+spatial profiles, KL-vs-$\varepsilon$ sweep, continual-learning gap vs
+no-consolidation baseline) is implemented in
+\texttt{track2\_paper/figures/} and will be included in the camera-ready.
+The skeleton version presented here focuses on the phase-portrait claim.
 
 \section{Discussion and limitations}
 \label{sec:disc}
