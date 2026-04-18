@@ -50,3 +50,53 @@ class LoRATrainerStub:
         }
         (out / "manifest.json").write_text(json.dumps(manifest, indent=2))
         return manifest
+
+
+class LoRATrainerReal:
+    """Invokes the real trainer on a remote SSH host via the existing
+    ~/KIKI-Mac_tunner/scripts/train_stack.py entry point. Every invocation
+    requires explicit user confirmation when dry_run is False."""
+
+    REMOTE_SCRIPT = "~/KIKI-Mac_tunner/scripts/train_stack.py"
+
+    def __init__(
+        self,
+        config: LoRATrainingConfig,
+        ssh_host: str,
+        dry_run: bool = True,
+    ) -> None:
+        self.config = config
+        self.ssh_host = ssh_host
+        self.dry_run = dry_run
+
+    def build_command(self, dataset_path: Path) -> list[str]:
+        return [
+            "python",
+            self.REMOTE_SCRIPT,
+            "--base-model",
+            self.config.base_model,
+            "--lora-rank",
+            str(self.config.lora_rank),
+            "--lora-alpha",
+            str(self.config.lora_alpha),
+            "--learning-rate",
+            str(self.config.learning_rate),
+            "--n-steps",
+            str(self.config.n_steps),
+            "--batch-size",
+            str(self.config.batch_size),
+            "--dataset",
+            str(dataset_path),
+            "--output-dir",
+            str(self.config.output_dir),
+            "--seed",
+            str(self.config.seed),
+        ]
+
+    def train(self, dataset_path: Path) -> dict[str, Any]:
+        if self.dry_run:
+            return {"status": "dry-run", "command": self.build_command(dataset_path)}
+        raise RuntimeError(
+            "Real-mode training on kxkm-ai requires explicit user "
+            "confirmation. Run this script interactively, not automated."
+        )
