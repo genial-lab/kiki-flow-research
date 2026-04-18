@@ -21,16 +21,19 @@ loop that couples Langevin particle dynamics with an implicit JKO step,
 we show that (i) the flow is numerically tractable at scale on commodity
 Apple Silicon (5 seeds $\times$ 10k particles $\times$ 100 slow steps in
 under three minutes with a fast path, under ninety minutes with the full
-Wasserstein-regularized path); (ii) the flow induces emergent
+Wasserstein-regularized path; a native MLX Sinkhorn further accelerates
+the rigorous path by $5\times$); (ii) the flow induces emergent
 species-level specialization when the attraction-to-species-regions is
-strong enough, with a measured entropy gap of $1.40$ bits below the
-maximum at a tuned hyperparameter point, versus $\sim\!0$ bits under the
-default flat potentials; and (iii) a compact neural surrogate distilled
-from the flow meets a sub-10\,ms p50 streaming-inference budget on
-Apple Silicon with a measured p50 of $0.04$\,ms. We additionally report
-a measured sweep of the entropic-Sinkhorn bias as a function of
-$\varepsilon$. The companion repository contains the full implementation,
-tests, and reproducibility scripts.
+strong enough, with a measured entropy gap of $2.04$ bits below the
+maximum at the best point of a 72-configuration sweep ($51\%$ below max),
+versus $\sim\!0$ bits under the default flat potentials; and (iii) a
+compact neural surrogate distilled from the flow meets a sub-10\,ms p50
+streaming-inference budget on Apple Silicon with a measured p50 of
+$0.04$\,ms. We additionally report a measured sweep of the
+entropic-Sinkhorn bias as a function of $\varepsilon$ and a distributional
+continual-learning proxy that surfaces a stability/plasticity trade-off.
+The companion repository contains the full implementation, tests, and
+reproducibility scripts.
 \end{abstract}
 
 \section{Introduction}
@@ -217,19 +220,29 @@ the flow does not spontaneously concentrate onto a non-uniform
 stationary state.
 
 \paragraph{Hyperparameter sweep unlocks specialization.}
-We next swept the potential magnitude $\alpha$, gradient-descent strength
-$\beta$, and Turing coupling $\gamma$ over 27 configurations
-($\alpha \in \{0, 1, 5\}$, $\beta \in \{0, 0.1, 1\}$,
+We swept the potential magnitude $\alpha$, gradient-descent strength
+$\beta$, and Turing coupling $\gamma$ over 27 coarse configurations
+then refined with 72 denser configurations
+($\alpha \in \{0, 1, 3, 5, 8, 10\}$, $\beta \in \{0, 0.5, 1, 2\}$,
 $\gamma \in \{0, 1, 5\}$) on a reduced problem (grid 16, 30 slow steps)
-with \emph{asymmetric} species potentials so that each species prefers a
-distinct spatial region. At $(\alpha, \beta, \gamma) = (5, 1, 0)$ the mean
-final entropy drops to $2.60$ bits against a maximum of $4$ bits
-(gap $1.40$ bits, or $35\%$ below maximum), demonstrating that the
-formalism \emph{does} support emergent specialization once the
-attraction-to-species-preferred-regions is strong enough. The Turing
-coupling $\gamma$ has negligible effect at this scale
-(Figure \ref{fig:turing}). Full sweep data is in
-\texttt{paper/hyperparam\_sweep.json}.
+with \emph{asymmetric} species potentials so that each species prefers
+a distinct spatial region. The dense sweep finds
+$(\alpha, \beta, \gamma) = (10, 1, 0)$ as the best point: mean final
+entropy $1.96$ bits against maximum $4$ bits (gap $2.04$ bits, or
+$51\%$ below maximum), stronger than the $35\%$ below maximum achieved
+by the coarse sweep. The Turing coupling $\gamma$ has negligible effect
+across both sweeps. Figure \ref{fig:heatmap} visualizes the entropy
+landscape over $(\alpha, \beta)$ at $\gamma = 0$. Full sweep data is in
+\texttt{paper/hyperparam\_sweep\_dense.json}.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.5\textwidth]{figures/fig6_heatmap.png}
+  \caption{Mean final entropy (bits) over the $(\alpha, \beta)$ grid at
+    $\gamma = 0$. Darker = lower entropy = more specialization. Maximum
+    on a 16-bin grid is $4$ bits.}
+  \label{fig:heatmap}
+\end{figure}
 
 \subsection{Free-energy decay}
 Figure \ref{fig:fdecay} plots $F[\rho^\tau]$ along seed~0's trajectory.
