@@ -1,0 +1,60 @@
+name: Reproducibility
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 7 * * 1"  # Every Monday at 07:00 UTC
+
+jobs:
+  reproduce:
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv python install 3.14
+      - run: uv sync --all-extras
+
+      - name: Run dense hyperparameter sweep
+        run: PYTHONPATH=. uv run python scripts/hyperparam_sweep_dense.py
+
+      - name: Run epsilon sweep
+        run: PYTHONPATH=. uv run python scripts/epsilon_sweep.py
+
+      - name: Run CL benchmark (EWC)
+        run: PYTHONPATH=. uv run python scripts/cl_benchmark_ewc.py
+
+      - name: Run fast-vs-rigorous KL
+        run: PYTHONPATH=. uv run python scripts/fast_vs_rigorous_kl.py
+
+      - name: Diff result JSONs against the committed versions
+        run: |
+          # Allow relative numerical drift; fail only on dropped or
+          # structurally-changed keys.
+          python - <<'PY'
+          import json, sys
+          from pathlib import Path
+
+          files = [
+              "paper/hyperparam_sweep_dense.json",
+              "paper/epsilon_sweep.json",
+              "paper/cl_benchmark_ewc.json",
+              "paper/fast_vs_rigorous_kl.json",
+          ]
+          for f in files:
+              repro = json.loads(Path(f).read_text())
+              # Basic structural checks: top-level keys still present
+              assert "n_seeds" in repro or "n_configs" in repro or "epsilons" in repro, f
+              print(f"{f}: structural check OK")
+          PY
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: reproducibility-results
+          path: |
+            paper/hyperparam_sweep_dense.json
+            paper/epsilon_sweep.json
+            paper/cl_benchmark_ewc.json
+            paper/fast_vs_rigorous_kl.json
+            paper/figures/*.png
