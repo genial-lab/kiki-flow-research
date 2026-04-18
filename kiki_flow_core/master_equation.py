@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 
 import numpy as np
 
 from kiki_flow_core.state import FlowState
 from kiki_flow_core.wasserstein_ops import prox_w2
+
+ProxFn = Callable[..., np.ndarray]
 
 
 class FreeEnergy(ABC):
@@ -62,6 +65,7 @@ class JKOStep:
         support: np.ndarray,
         n_inner: int = 50,
         apply_w2_prox: bool = False,
+        prox_fn: ProxFn | None = None,
     ) -> None:
         if h <= 0:
             raise ValueError("h must be positive")
@@ -70,6 +74,10 @@ class JKOStep:
         self.support = support
         self.n_inner = n_inner
         self.apply_w2_prox = apply_w2_prox
+        # Strategy pattern: Track-specific subclasses can inject an MLX-backed
+        # prox without forcing a circular import here. Default remains the
+        # POT-backed prox_w2.
+        self.prox_fn: ProxFn = prox_fn if prox_fn is not None else prox_w2  # type: ignore[assignment]
 
     def step(self, state: FlowState) -> FlowState:
         new_rho: dict[str, np.ndarray] = {}
@@ -86,7 +94,7 @@ class JKOStep:
                 rho = np.clip(rho, 1e-12, None)
                 rho = rho / rho.sum()
             if self.apply_w2_prox:
-                rho = prox_w2(
+                rho = self.prox_fn(
                     rho,
                     reference=rho_tau,
                     epsilon=self.h,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 from safetensors.numpy import save_file
@@ -19,11 +19,13 @@ from kiki_flow_core.track2_paper.figures.f_decay_curves import make_f_decay_curv
 from kiki_flow_core.track2_paper.figures.kl_vs_epsilon import make_kl_vs_epsilon
 from kiki_flow_core.track2_paper.figures.phase_portrait import make_phase_portrait
 from kiki_flow_core.track2_paper.figures.turing_patterns import make_turing_patterns
-from kiki_flow_core.track2_paper.full_jko_solver import FullJKOSolver
+from kiki_flow_core.track2_paper.full_jko_solver import FullJKOSolver, MLXFullJKOSolver
 from kiki_flow_core.track2_paper.mlx_particle_simulator import MLXParticleSimulator
 from kiki_flow_core.track2_paper.multiscale_loop import MultiscaleLoop
 from kiki_flow_core.track2_paper.paper_f import T2FreeEnergy
 from kiki_flow_core.track2_paper.particle_simulator import ParticleSimulator
+
+SinkhornBackend = Literal["pot", "mlx"]
 
 
 def _persist_trajectory(trajectory: list[FlowState], out_path: Path) -> None:
@@ -74,6 +76,7 @@ def run_paper(
     out_dir: Path = Path("paper"),
     use_mlx: bool = True,
     use_w2_prox: bool = False,
+    sinkhorn_backend: SinkhornBackend = "pot",
     save_trajectories: bool = False,
     make_all_figures: bool = False,
 ) -> dict[str, Any]:
@@ -104,7 +107,12 @@ def run_paper(
     f_func = T2FreeEnergy(species=species, potentials=potentials, prior=prior, turing_strength=0.1)
 
     if use_w2_prox:
-        jko: JKOStep = FullJKOSolver(f_functional=f_func, h=0.05, support=support, epsilon=0.01)
+        if sinkhorn_backend == "mlx":
+            jko: JKOStep = MLXFullJKOSolver(
+                f_functional=f_func, h=0.05, support=support, epsilon=0.01
+            )
+        else:
+            jko = FullJKOSolver(f_functional=f_func, h=0.05, support=support, epsilon=0.01)
     else:
         jko = JKOStep(f_functional=f_func, h=0.05, support=support, n_inner=10, apply_w2_prox=False)
 
@@ -136,7 +144,11 @@ def run_paper(
     stats: dict[str, Any] = {
         "n_seeds": len(seeds),
         "per_seed": per_seed,
-        "backend": {"simulator": "mlx" if use_mlx else "numpy", "w2_prox": use_w2_prox},
+        "backend": {
+            "simulator": "mlx" if use_mlx else "numpy",
+            "w2_prox": use_w2_prox,
+            "sinkhorn_backend": sinkhorn_backend if use_w2_prox else None,
+        },
     }
 
     if make_all_figures and trajectories:
