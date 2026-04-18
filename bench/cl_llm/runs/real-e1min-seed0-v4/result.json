@@ -1,0 +1,20 @@
+{
+  "mode": "real",
+  "status": "ok",
+  "task": "phono_sst2",
+  "seed": 0,
+  "n_samples": 70,
+  "manifest": {
+    "status": "ok",
+    "mode": "real",
+    "base_model": "Qwen/Qwen3-4B",
+    "n_steps": 500,
+    "n_samples": 70,
+    "seed": 0,
+    "eval_accuracy": 1.0,
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "timestamp": 1776517377.0268087
+  },
+  "wall_time_s": 77.03234577178955
+}

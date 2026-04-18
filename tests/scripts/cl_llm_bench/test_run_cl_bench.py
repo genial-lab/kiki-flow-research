@@ -306,3 +306,111 @@ def test_run_real_returns_structured_error_on_rsync_failure(
     )
     assert out["status"] == "failed"
     assert out["stage"] in {"rsync_up", "ssh_train", "manifest_parse"}
+
+
+def test_run_real_cl_sequence_3_tasks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Full CL sequence: 3 tasks -> 3 trains + 2 final evals = 5 trainer SSH
+    calls. Forgetting is computed from synthetic manifests. rsync/mkdir calls
+    are mocked to succeed and do not consume the manifest queue."""
+    import subprocess as sp  # noqa: PLC0415
+
+    from scripts.cl_llm_bench import run_cl_bench as rcb  # noqa: PLC0415
+
+    # Preflight stubbed green so we reach the CL loop.
+    def fake_preflight(host: str) -> dict:
+        return {"host": host, "checks": {}, "ready_for_real": True}
+
+    monkeypatch.setattr(rcb, "preflight_report", fake_preflight)
+
+    # Register synthetic tasks so we don't depend on HuggingFace downloads.
+    fake_entry = {
+        "species": "phono",
+        "hf_dataset": ("fake", "fake"),
+        "text_field": "text",
+        "label_field": "label",
+    }
+    monkeypatch.setitem(rcb.TASK_REGISTRY, "t0", fake_entry)
+    monkeypatch.setitem(rcb.TASK_REGISTRY, "t1", fake_entry)
+    monkeypatch.setitem(rcb.TASK_REGISTRY, "t2", fake_entry)
+
+    # Make load_task_sequence return deterministic stub data without
+    # touching HF. Each task has enough records that _prepare_task_jsonl
+    # writes a non-empty file.
+    def fake_load_task_sequence(names: list[str], max_samples: int = 500) -> list[dict]:
+        out = []
+        for name in names:
+            out.append(
+                {
+                    "name": name,
+                    "species": "phono",
+                    "train": [{"text": f"t-{name}-{i}", "label": i % 2} for i in range(4)],
+                    "eval": [{"text": f"e-{name}-{i}", "label": i % 2} for i in range(2)],
+                }
+            )
+        return out
+
+    monkeypatch.setattr(rcb, "load_task_sequence", fake_load_task_sequence)
+
+    # Ordered queue of synthetic manifests for the 5 trainer invocations:
+    #   train t0, train t1, train t2 (3x), then eval t0 final, eval t1 final (2x).
+    fake_manifests: list[dict] = [
+        {"status": "ok", "eval_accuracy": 0.9},  # t0 immediate
+        {"status": "ok", "eval_accuracy": 0.8},  # t1 immediate
+        {"status": "ok", "eval_accuracy": 0.7},  # t2 immediate
+        {"status": "ok", "eval_accuracy": 0.5},  # t0 final (forgotten)
+        {"status": "ok", "eval_accuracy": 0.6},  # t1 final (partial forget)
+    ]
+    trainer_call_count = {"n": 0}
+
+    def fake_run(cmd, **kwargs):  # type: ignore[no-untyped-def]
+        # Distinguish trainer (uv run train_cl_task.py over SSH) from
+        # rsync / ssh-mkdir calls. The trainer SSH command is
+        # ["ssh", host, "<uv>", "run", REMOTE_SCRIPT, ...].
+        is_trainer = (
+            isinstance(cmd, list)
+            and len(cmd) >= 5  # noqa: PLR2004
+            and cmd[0] == "ssh"
+            and cmd[3] == "run"
+            and "train_cl_task.py" in cmd[4]
+        )
+        if is_trainer:
+            trainer_call_count["n"] += 1
+            payload = fake_manifests.pop(0)
+
+            class R:
+                returncode = 0
+                stdout = json.dumps(payload, indent=2)
+                stderr = ""
+
+            return R()
+
+        class Ok:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        return Ok()
+
+    monkeypatch.setattr(sp, "run", fake_run)
+
+    out = rcb._run_real(
+        task_names=["t0", "t1", "t2"],
+        output_dir=tmp_path,
+        seed=0,
+        ssh_host="bogus",
+        confirmed=True,
+        max_samples=50,
+        base_model="test-model",
+    )
+
+    assert out["status"] == "ok"
+    assert set(out["immediate_accuracy"].keys()) == {"t0", "t1", "t2"}
+    assert set(out["final_accuracy"].keys()) == {"t0", "t1", "t2"}
+    assert set(out["forgetting"].keys()) == {"t0", "t1", "t2"}
+    # 3 training invocations + 2 final evals (last task skipped)
+    assert trainer_call_count["n"] == 5  # noqa: PLR2004
+    # Forgetting arithmetic
+    tol = 1e-6
+    assert abs(out["forgetting"]["t0"] - 0.4) < tol  # 0.9 -> 0.5
+    assert abs(out["forgetting"]["t1"] - 0.2) < tol  # 0.8 -> 0.6
+    assert out["forgetting"]["t2"] == 0.0  # last task has no forgetting

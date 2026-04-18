@@ -1,0 +1,30 @@
+{
+  "host": "kxkm-ai",
+  "checks": {
+    "train_stack": {
+      "status": "fail",
+      "detail": "missing"
+    },
+    "qwen_weights": {
+      "status": "fail",
+      "detail": "missing"
+    },
+    "hf_datasets": {
+      "status": "fail",
+      "detail": "missing"
+    },
+    "uv": {
+      "status": "fail",
+      "detail": "missing"
+    },
+    "disk_gb": {
+      "status": "ok",
+      "detail": "182 GB free (need > 50 GB)"
+    },
+    "gpu": {
+      "status": "ok",
+      "detail": "0 %"
+    }
+  },
+  "ready_for_real": false
+}

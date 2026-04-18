@@ -1,0 +1,14 @@
+{
+  "mode": "stub",
+  "seed": 0,
+  "forgetting_without_bridge": {
+    "phono_sst2": 0.51,
+    "lex_cola": 0.36000000000000004,
+    "syn_boolq": 0.0
+  },
+  "forgetting_with_bridge": {
+    "phono_sst2": 0.0,
+    "lex_cola": 0.54,
+    "syn_boolq": 0.56
+  }
+}

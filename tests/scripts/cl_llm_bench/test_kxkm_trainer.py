@@ -14,6 +14,8 @@ EXPECTED_FLAGS = [
     "--dataset",
     "--output-dir",
     "--seed",
+    "--resume-adapter",
+    "--eval-only",
 ]
 
 

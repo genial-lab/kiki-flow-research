@@ -1,0 +1,7 @@
+{
+  "mode": "real",
+  "status": "failed",
+  "stage": "ssh_train",
+  "error": "ssh rc=1: Downloading nvidia-nvjitlink (38.8MiB)\nDownloading sympy (6.0MiB)\nDownloading aiohttp (1.7MiB)\nDownloading networkx (2.0MiB)\nDownloading setuptools (1.0MiB)\nDownloading nvidia-cudnn-cu13 (349.1MiB)\nDownloading nvidia-cufile (1.2MiB)\nDownloading nvidia-nccl-cu13 (187.4MiB)\nDownloading numpy (15.9MiB)\nDownloading tokenizers (3.1MiB)\nDownloading transformers (9.8MiB)\nDownloading nvidia-cusparse (139.2MiB)\nDownloading cuda-bindings (5.9MiB)\nDownloading nvidia-cuda-nvrtc (86.0MiB)\nDownloading nvidia-",
+  "seed": 0
+}

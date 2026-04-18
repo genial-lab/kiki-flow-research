@@ -1,0 +1,7 @@
+{
+  "mode": "real",
+  "status": "failed",
+  "stage": "rsync_up",
+  "error": "rsync up failed (rc=1): rsync: unrecognized option `--mkpath'\nusage: rsync [-0468BCDEFHIKLOPRSTWVabcdghiklnopqrtuvxyz] [-e program]\n\t[-f filter] [--8-bit-output] [--address=sourceaddr] [--append]\n\t[--backup-dir=dir] [--bwlimit=limit] [--cache | --no-cache]\n\t[--checksum-seed=NUM] [--chmod=mode] [--compare-dest=dir] [--compr",
+  "seed": 0
+}

@@ -64,3 +64,8 @@ testpaths = ["tests"]
 pythonpath = ["."]  # avoids uv+py314 UF_HIDDEN .pth issue on macOS
 addopts = "-v --strict-markers --cov=kiki_flow_core --cov-report=term-missing --import-mode=importlib"
 markers = ["slow: tests > 1s", "golden: numerical regression tests"]
+
+[dependency-groups]
+dev = [
+    "datasets>=3.0",
+]

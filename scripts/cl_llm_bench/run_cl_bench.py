@@ -268,7 +268,35 @@ def _fail(stage: str, error: str, seed: int) -> dict[str, Any]:
     }
 
 
-def _run_real(  # noqa: PLR0911 (each stage returns a structured error dict by design)
+def _ssh_run_trainer(ssh_host: str, cmd: list[str]) -> dict[str, Any]:
+    """Run the remote trainer over SSH and return its parsed manifest.
+
+    Raises ``RuntimeError`` on SSH failure (non-zero rc, timeout, or
+    unparseable stdout); the message surfaces stderr so the caller can
+    build a structured ``_fail(...)`` dict.
+    """
+    try:
+        result = subprocess.run(
+            ["ssh", ssh_host, *cmd],
+            capture_output=True,
+            text=True,
+            timeout=_SSH_TRAIN_TIMEOUT_S,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as e:
+        msg = f"ssh train timed out after {_SSH_TRAIN_TIMEOUT_S}s: {e!s}"
+        raise RuntimeError(msg) from e
+    if result.returncode != 0:
+        msg = f"ssh rc={result.returncode}: {result.stderr[:500]}"
+        raise RuntimeError(msg)
+    try:
+        return _parse_manifest_from_stdout(result.stdout)
+    except Exception as e:
+        msg = f"manifest parse failed: {e!s}; stderr: {result.stderr[:200]}"
+        raise RuntimeError(msg) from e
+
+
+def _run_real(
     task_names: list[str],
     output_dir: Path,
     seed: int,
@@ -277,12 +305,20 @@ def _run_real(  # noqa: PLR0911 (each stage returns a structured error dict by d
     max_samples: int = 500,
     base_model: str = "Qwen/Qwen3-4B",
 ) -> dict[str, Any]:
-    """Real mode execution: run LoRA trainer on kxkm-ai for a single task.
+    """Real-mode CL sequence: train sequentially on ``task_names`` with LoRA
+    adapter resume between tasks, then evaluate the final adapter on every
+    prior task to compute per-task forgetting.
 
-    This function is ONLY reachable if confirmed=True. Otherwise it raises.
-    First runs preflight checks; aborts if any fail. E1_min scope: SINGLE
-    task only. If multiple task names are passed, extras are ignored with
-    a stderr WARN; multi-task CL is E2_alt.
+    This function is ONLY reachable if ``confirmed=True``. Otherwise it
+    raises. First runs preflight checks; aborts if any fail. Any stage
+    failure is wrapped into a ``_fail(...)`` dict; no exception propagates
+    out of ``_run_real``.
+
+    Forgetting metric (Kirkpatrick et al. 2017):
+      - ``immediate_i`` = eval accuracy on task i right after training it.
+      - ``final_i``     = eval accuracy on task i using the last adapter.
+      - ``forgetting_i`` = max(0, immediate_i - final_i).
+    The last task's immediate == final by definition (no subsequent train).
     """
     if not confirmed:
         raise RuntimeError(
@@ -307,91 +343,128 @@ def _run_real(  # noqa: PLR0911 (each stage returns a structured error dict by d
     if not task_names:
         return _fail("input", "task_names is empty", seed)
 
-    first_task = task_names[0]
-    if len(task_names) > 1:
-        print(
-            f"WARN: E1_min is single-task only; ignoring extra tasks {task_names[1:]}",
-            file=sys.stderr,
-        )
+    try:
+        return _run_real_sequence(task_names, output_dir, seed, ssh_host, max_samples, base_model)
+    except Exception as e:  # noqa: BLE001
+        # Any unexpected failure inside the loop surfaces as a structured
+        # error dict — do not propagate out of _run_real.
+        return _fail("cl_sequence", str(e), seed)
 
+
+def _run_real_sequence(  # noqa: PLR0911
+    task_names: list[str],
+    output_dir: Path,
+    seed: int,
+    ssh_host: str,
+    max_samples: int,
+    base_model: str,
+) -> dict[str, Any]:
+    """Inner loop for the CL sequence. Each per-stage failure returns a
+    ``_fail(...)`` dict; unexpected exceptions bubble up to ``_run_real``
+    for a catch-all ``_fail("cl_sequence", ...)`` wrapping."""
     t_start = time.time()
 
-    # 1. Load the task (train + eval).
+    # 1. Load every task (train + eval).
     try:
-        tasks = load_task_sequence([first_task], max_samples=max_samples)
+        task_dicts = load_task_sequence(task_names, max_samples=max_samples)
     except Exception as e:  # noqa: BLE001
         return _fail("load_task", str(e), seed)
-    task = tasks[0]
-    n_samples = len(task.get("train", [])) + len(task.get("eval", []))
 
-    # 2. Write normalized JSONL locally.
-    local_jsonl = output_dir / f"{first_task}.jsonl"
-    try:
-        _prepare_task_jsonl(task, local_jsonl)
-    except Exception as e:  # noqa: BLE001
-        return _fail("prepare_jsonl", str(e), seed)
+    # 2. Per-task JSONL prep + rsync up.
+    remote_jsonl_by_task: dict[str, str] = {}
+    for td in task_dicts:
+        name = td["name"]
+        local_jsonl = output_dir / f"{name}.jsonl"
+        try:
+            _prepare_task_jsonl(td, local_jsonl)
+        except Exception as e:  # noqa: BLE001
+            return _fail("prepare_jsonl", f"{name}: {e!s}", seed)
+        try:
+            _rsync_up(local_jsonl, ssh_host, _REMOTE_DATASET_DIR)
+        except Exception as e:  # noqa: BLE001
+            return _fail("rsync_up", f"{name}: {e!s}", seed)
+        remote_jsonl_by_task[name] = f"{_REMOTE_DATASET_DIR}/{local_jsonl.name}"
 
-    # 3. rsync JSONL up to kxkm-ai.
-    try:
-        _rsync_up(local_jsonl, ssh_host, _REMOTE_DATASET_DIR)
-    except Exception as e:  # noqa: BLE001
-        return _fail("rsync_up", str(e), seed)
-
-    # 4. Build the SSH + trainer invocation.
-    remote_dataset_jsonl = f"{_REMOTE_DATASET_DIR}/{local_jsonl.name}"
-    remote_output_dir = Path(f"~/bench_runs/{seed}_{first_task}")
-    cfg = LoRATrainingConfig(
-        base_model=base_model,
-        lora_rank=8,
-        lora_alpha=16,
-        learning_rate=2e-4,
-        n_steps=500,
-        batch_size=4,
-        output_dir=remote_output_dir,
-        seed=seed,
-    )
-    trainer = LoRATrainerReal(cfg, ssh_host, dry_run=False)
-    cmd = trainer.build_command(dataset_path=Path(remote_dataset_jsonl))
-
-    # 5. Execute on the remote host.
-    try:
-        ssh_result = subprocess.run(
-            ["ssh", ssh_host, *cmd],
-            capture_output=True,
-            text=True,
-            timeout=_SSH_TRAIN_TIMEOUT_S,
-            check=False,
+    # 3. Sequential training with adapter resume.
+    immediate_acc: dict[str, float] = {}
+    remote_adapter: str | None = None
+    remote_adapter_paths: dict[str, str] = {}
+    for i, td in enumerate(task_dicts):
+        name = td["name"]
+        remote_output = f"~/bench_runs/{seed}_{name}"
+        cfg = LoRATrainingConfig(
+            base_model=base_model,
+            lora_rank=8,
+            lora_alpha=16,
+            learning_rate=2e-4,
+            n_steps=500,
+            batch_size=4,
+            output_dir=Path(remote_output),
+            seed=seed,
         )
-    except subprocess.TimeoutExpired as e:
-        return _fail("ssh_train", f"ssh train timed out after {_SSH_TRAIN_TIMEOUT_S}s: {e!s}", seed)
-    except Exception as e:  # noqa: BLE001
-        return _fail("ssh_train", str(e), seed)
-    if ssh_result.returncode != 0:
-        return _fail(
-            "ssh_train", f"ssh rc={ssh_result.returncode}: {ssh_result.stderr[:500]}", seed
+        trainer = LoRATrainerReal(cfg, ssh_host, dry_run=False)
+        cmd = trainer.build_command(dataset_path=Path(remote_jsonl_by_task[name]))
+        if remote_adapter is not None:
+            cmd += ["--resume-adapter", remote_adapter]
+        try:
+            manifest = _ssh_run_trainer(ssh_host, cmd)
+        except Exception as e:  # noqa: BLE001
+            return _fail("ssh_train", f"task[{i}]={name}: {e!s}", seed)
+        if manifest.get("status") != "ok":
+            return _fail(
+                "ssh_train",
+                f"task[{i}]={name}: trainer returned non-ok manifest: {manifest!r}",
+                seed,
+            )
+        immediate_acc[name] = float(manifest.get("eval_accuracy", 0.0))
+        remote_adapter = f"{remote_output}/lora_adapter"
+        remote_adapter_paths[name] = remote_adapter
+
+    final_adapter = remote_adapter  # adapter after the last training step
+
+    # 4. Post-sequence eval of the final adapter on every prior task.
+    #    The last task's immediate == final by definition (no subsequent
+    #    forgetting), so we only re-evaluate task_names[:-1].
+    final_acc: dict[str, float] = {name: immediate_acc[name] for name in task_names}
+    for name in task_names[:-1]:
+        remote_eval_output = f"~/bench_runs/{seed}_{name}_final_eval"
+        cfg_eval = LoRATrainingConfig(
+            base_model=base_model,
+            lora_rank=8,
+            lora_alpha=16,
+            learning_rate=2e-4,
+            n_steps=0,
+            batch_size=4,
+            output_dir=Path(remote_eval_output),
+            seed=seed,
         )
+        trainer_eval = LoRATrainerReal(cfg_eval, ssh_host, dry_run=False)
+        cmd_eval = trainer_eval.build_command(dataset_path=Path(remote_jsonl_by_task[name]))
+        cmd_eval += ["--resume-adapter", str(final_adapter), "--eval-only"]
+        try:
+            eval_manifest = _ssh_run_trainer(ssh_host, cmd_eval)
+        except Exception as e:  # noqa: BLE001
+            return _fail("ssh_eval", f"task={name}: {e!s}", seed)
+        if eval_manifest.get("status") != "ok":
+            return _fail(
+                "ssh_eval",
+                f"task={name}: eval manifest non-ok: {eval_manifest!r}",
+                seed,
+            )
+        final_acc[name] = float(eval_manifest.get("eval_accuracy", 0.0))
 
-    # 6. Parse the manifest from stdout.
-    try:
-        manifest = _parse_manifest_from_stdout(ssh_result.stdout)
-    except Exception as e:  # noqa: BLE001
-        return _fail("manifest_parse", str(e), seed)
-
-    # 7. rsync the manifest back for provenance.
-    remote_manifest = f"{remote_output_dir}/manifest.json"
-    local_manifest = output_dir / "manifest.json"
-    try:
-        _rsync_down(ssh_host, remote_manifest, local_manifest)
-    except Exception as e:  # noqa: BLE001
-        return _fail("rsync_down", str(e), seed)
+    forgetting = {name: max(0.0, immediate_acc[name] - final_acc[name]) for name in task_names}
 
     return {
         "mode": "real",
         "status": "ok",
-        "task": first_task,
         "seed": seed,
-        "n_samples": n_samples,
-        "manifest": manifest,
+        "tasks": task_names,
+        "immediate_accuracy": immediate_acc,
+        "final_accuracy": final_acc,
+        "forgetting": forgetting,
+        "final_adapter": final_adapter,
+        "adapters": remote_adapter_paths,
         "wall_time_s": time.time() - t_start,
     }
 

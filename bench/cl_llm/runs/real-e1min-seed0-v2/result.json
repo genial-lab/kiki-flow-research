@@ -1,0 +1,7 @@
+{
+  "mode": "real",
+  "status": "failed",
+  "stage": "ssh_train",
+  "error": "ssh rc=127: bash: line 1: uv: command not found\n",
+  "seed": 0
+}
