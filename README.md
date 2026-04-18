@@ -64,7 +64,7 @@ PYTHONPATH=. uv run python scripts/epsilon_sweep.py
 # Figure 5: measured continual-learning proxy (5 seeds)
 PYTHONPATH=. uv run python scripts/cl_benchmark.py
 
-# Hyperparameter sweep (27 configs) to reproduce the specialization finding
+# Hyperparameter sweep (72 configs, dense) to reproduce the specialization finding
 PYTHONPATH=. uv run python scripts/hyperparam_sweep.py
 
 # Compile the LaTeX paper (requires tectonic or a TeX distribution)
@@ -86,6 +86,7 @@ uv run pytest --cov=kiki_flow_core
 | Streaming surrogate latency | p50 = 0.04 ms, p99 = 0.06 ms (v0.1, `state_dim=16`); p50 = 0.37 ms (v0.2-d128, `state_dim=128`) | `bench/T3_latency.jsonl` |
 | Continual-learning retention (honest trade-off) | Task 1 with cons. 0.90 ± 0.07 / without 0.29 ± 0.07; Task 3 with 0.004 / without 0.81 | `paper/cl_benchmark.json` |
 | Sinkhorn entropic bias | KL(ρ_ε ‖ ρ_0.001) grows 0 → 8.3 bits, saturates at ε ≥ 0.05 | `paper/epsilon_sweep.json` |
+| MLX Sinkhorn speedup vs POT | 5.13× faster on T2 JKO solver (GrosMac M5, `sinkhorn_backend="mlx"`) | `bench/T2_backend_speedup.jsonl` |
 
 Results that did **not** hold are reported honestly in the paper:
 the default flat-potential setup does not induce specialization
