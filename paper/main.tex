@@ -16,12 +16,18 @@
 \begin{abstract}
 We introduce a family of reaction-diffusion models for the four-species
 Levelt--Baddeley account of language production, formulated as a Wasserstein
-gradient flow on the space of activation distributions. We demonstrate
-numerically that (i) the JKO scheme drives emergent specialization across
-species, (ii) the continual-learning gap versus a no-consolidation baseline
-is statistically significant over 5 seeds, and (iii) a compact neural
-surrogate meets a sub-10\,ms p50 streaming-inference budget on Apple Silicon
-(measured p50 = 0.04\,ms, 250$\times$ under budget).
+gradient flow on the space of activation distributions. Using a multi-scale
+loop that couples Langevin particle dynamics with an implicit JKO step,
+we show that (i) the flow is numerically tractable at scale on commodity
+Apple Silicon (5 seeds $\times$ 10k particles $\times$ 100 slow steps in
+under three minutes with a fast path, under ninety minutes with the full
+Wasserstein-regularized path); (ii) under the literature-derived coupling,
+the flow converges to near-uniform species densities, quantifying an
+empirical constraint on the current choice of potentials; and (iii) a
+compact neural surrogate distilled from the flow meets a sub-10\,ms p50
+streaming-inference budget on Apple Silicon with a measured p50 of
+$0.04$\,ms. The companion repository contains the full implementation,
+tests, and reproducibility scripts.
 \end{abstract}
 
 \section{Introduction}
@@ -46,11 +52,12 @@ Wasserstein gradient flow over four psycholinguistic species
   \item A three-track implementation --- performance-oriented, paper-grade,
         and production-deployable --- released at
         \url{https://github.com/electron-rare/kiki-flow-research}.
-  \item Empirical evidence of emergent species specialization and
-        measurable anti-forgetting on five independent seeds.
-  \item A neural surrogate distilled from the paper-grade track,
+  \item A quantitative characterization of the final-state entropy and
+        peak amplitude on five independent seeds, surfacing the honest
+        negative finding that the current functional stays near uniform.
+  \item A neural surrogate distilled from the multi-scale trajectories,
         deployable in a production LLM router under 10\,ms p50 on
-        Apple Silicon.
+        Apple Silicon (measured p50 = 0.04\,ms).
 \end{itemize}
 
 \section{Background and related work}
@@ -299,12 +306,26 @@ into a production LLM router via an external PR.
 \section{Conclusion}
 \label{sec:conclusion}
 
-A Wasserstein gradient flow over four psycholinguistic species captures
-non-trivial dynamics of LLM consolidation, admits a rigorous numerical
-treatment via JKO + Sinkhorn, and produces a lightweight surrogate that
-meets streaming-inference budgets. The open-source code at
-\url{https://github.com/electron-rare/kiki-flow-research} is released
-under MIT.
+A Wasserstein gradient flow over four psycholinguistic species is
+numerically tractable at realistic scale and produces a lightweight
+streaming surrogate that meets sub-10\,ms p50 latency on Apple Silicon.
+The current literature-derived coupling produces near-uniform final
+distributions, so the main open question is hyperparameter tuning to
+induce the emergent specialization that the formalism supports in
+principle. The next iteration will sweep $(\alpha, \beta, \gamma,
+\lambda_T)$ and report the sensitivity of the entropy statistic.
+
+\paragraph{Reproducibility.}
+All code, data, trajectories, and figure generators are available at
+\url{https://github.com/electron-rare/kiki-flow-research} under the MIT
+licence. Tags \texttt{track\{1,2,3\}-v0.1} and \texttt{paper-v0.2-draft}
+correspond to the experiments reported here. A fresh run of the fast
+path reproduces the aggregate statistics exactly on the same seed set.
+
+\paragraph{Acknowledgments.}
+This work was developed as part of the \emph{micro-kiki} research
+programme at L'Electron Rare. We thank the Apple MLX and POT developer
+communities.
 
 \bibliographystyle{plain}
 \bibliography{references}
