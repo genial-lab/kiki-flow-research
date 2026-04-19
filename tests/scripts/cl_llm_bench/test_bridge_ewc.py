@@ -69,11 +69,17 @@ def test_run_real_passes_bridge_ewc_lambda_through_cli(
         ]
 
     monkeypatch.setattr(rcb, "load_task_sequence", fake_load_task_sequence)
-    # Return a deterministic advisory so the second task's cmd actually
-    # includes --bridge-advisory-json. Returning None would silently
-    # skip the flag, hiding the wiring.
+    # Return a deterministic non-uniform advisory so the second task's
+    # cmd actually includes --bridge-advisory-json. Returning (None, ...)
+    # would silently skip the flag, hiding the wiring. Signature now
+    # returns ``(advisory, source)`` per the fallback refactor.
     monkeypatch.setattr(
-        rcb, "_compute_task_advisory", lambda td, sample_n=128: np.ones(32, dtype=np.float32)
+        rcb,
+        "_compute_task_advisory",
+        lambda td, sample_n=128, seed=0: (
+            np.linspace(0.5, 1.5, 32, dtype=np.float32),
+            "bridge",
+        ),
     )
 
     captured_cmds: list[list[str]] = []

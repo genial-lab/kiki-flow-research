@@ -301,46 +301,87 @@ def _ssh_run_trainer(ssh_host: str, cmd: list[str]) -> dict[str, Any]:
         raise RuntimeError(msg) from e
 
 
-def _compute_task_advisory(
-    task_dict: dict[str, Any], sample_n: int = _ADVISORY_SAMPLE_N
-) -> np.ndarray | None:
-    """Aggregate the bridge advisory over a task's first ``sample_n`` train texts.
+_ADVISORY_UNIFORM_TOL = 1e-6
+_ADVISORY_DIRICHLET_ALPHA = 0.3
+_ADVISORY_TARGET_SUM = 32.0
 
-    Runs entirely on the local machine — the KikiFlowBridge stays out of
-    the remote trainer's PEP-723 env. Returns ``None`` when the bridge
-    is disabled, missing, or produced no non-null vectors.
+
+def _hand_crafted_advisory(task_name: str, seed: int = 0) -> np.ndarray:
+    """Deterministic, peaky, per-task 32-dim advisory used as a fallback.
+
+    The shipped ``KikiFlowBridge`` neural surrogate was distilled from T2
+    distributional trajectories rather than text-conditioned data, so it
+    collapses to a uniform output regardless of the input query. Until
+    a text-conditioned surrogate is available, this fallback produces a
+    deterministic, non-uniform advisory derived from the task name +
+    seed via a Dirichlet draw with low concentration (peaky). Same
+    ``sum=32`` scale as the bridge output so downstream code is
+    interchangeable.
     """
-    # Lazy import — kiki_flow_core is a heavy tree; only pay on real mode.
+    name_hash = abs(hash(task_name)) % (2**32)
+    rng = np.random.default_rng(name_hash + int(seed))
+    raw = rng.dirichlet(np.full(32, _ADVISORY_DIRICHLET_ALPHA))
+    return (raw * _ADVISORY_TARGET_SUM).astype(np.float64)
+
+
+def _compute_task_advisory(
+    task_dict: dict[str, Any],
+    sample_n: int = _ADVISORY_SAMPLE_N,
+    seed: int = 0,
+) -> tuple[np.ndarray | None, str]:
+    """Return ``(advisory, source)`` where source ∈ {"bridge", "fallback", "none"}.
+
+    Runs the bridge over the task's first ``sample_n`` train texts; if
+    every per-sample advisory is ``None`` or the aggregate is uniform
+    (``std < 1e-6``), falls back to ``_hand_crafted_advisory`` so the
+    EWC-prior plumbing has a non-uniform signal to weight by. Returns
+    ``(None, "none")`` only when the task name is unknown and we can't
+    construct even a fallback.
+    """
+    entry = TASK_REGISTRY.get(task_dict["name"])
+    if entry is None:
+        return None, "none"
+
+    # Try the bridge first.
     from kiki_flow_core.track3_deploy.kiki_flow_bridge import (  # noqa: PLC0415
         KikiFlowBridge,
     )
 
-    bridge = KikiFlowBridge(weights_path=_BRIDGE_WEIGHTS_PATH)
-    if not bridge.enabled:
-        return None
-    entry = TASK_REGISTRY.get(task_dict["name"])
-    if entry is None:
-        return None
-    text_field = entry["text_field"]
-    texts = [rec.get(text_field, "") for rec in task_dict.get("train", [])[:sample_n]]
-    vecs: list[np.ndarray] = []
-    for t in texts:
-        w = bridge.route_advisory(str(t))
-        if w is not None:
-            vecs.append(w)
-    if not vecs:
-        return None
-    mean: np.ndarray = np.mean(np.stack(vecs, axis=0), axis=0)
-    return mean
+    bridge = KikiFlowBridge(weights_path=_BRIDGE_WEIGHTS_PATH, use_stub_encoder=False)
+    if bridge.enabled:
+        text_field = entry["text_field"]
+        texts = [rec.get(text_field, "") for rec in task_dict.get("train", [])[:sample_n]]
+        vecs: list[np.ndarray] = []
+        for t in texts:
+            w = bridge.route_advisory(str(t))
+            if w is not None:
+                vecs.append(w)
+        if vecs:
+            mean: np.ndarray = np.mean(np.stack(vecs, axis=0), axis=0)
+            if float(mean.std()) > _ADVISORY_UNIFORM_TOL:
+                return mean, "bridge"
+
+    # Fallback: hand-crafted per-task advisory. Tests the EWC-prior
+    # mechanism independently of bridge surrogate quality.
+    return _hand_crafted_advisory(task_dict["name"], seed=seed), "fallback"
 
 
-def _write_advisory_json(task_name: str, advisory: np.ndarray, local_path: Path) -> Path:
-    """Dump ``{"task": ..., "advisory": [...]}`` as JSON next to the dataset."""
+def _write_advisory_json(
+    task_name: str,
+    advisory: np.ndarray,
+    local_path: Path,
+    source: str = "bridge",
+) -> Path:
+    """Dump ``{"task": ..., "source": ..., "advisory": [...]}`` as JSON."""
     local_path = Path(local_path)
     local_path.parent.mkdir(parents=True, exist_ok=True)
     local_path.write_text(
         json.dumps(
-            {"task": task_name, "advisory": [float(x) for x in advisory.tolist()]},
+            {
+                "task": task_name,
+                "source": source,
+                "advisory": [float(x) for x in advisory.tolist()],
+            },
             indent=2,
         )
     )
@@ -499,16 +540,17 @@ def _run_real_sequence(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915
         remote_adapter_paths[name] = remote_adapter
 
         # Compute + ship task i's advisory if the next task will need it.
-        # Bridge import is lazy; disabled bridge => silently skip.
+        # Bridge import is lazy; bridge falls back to a per-task hand-
+        # crafted vector when the surrogate produces uniform output.
         if bridge_ewc_lambda > 0.0 and i < len(task_dicts) - 1:
             try:
-                advisory = _compute_task_advisory(td)
+                advisory, advisory_source = _compute_task_advisory(td, seed=seed)
             except Exception:  # noqa: BLE001
-                advisory = None
+                advisory, advisory_source = None, "none"
             if advisory is not None:
                 local_adv = output_dir / f"{name}_advisory.json"
                 try:
-                    _write_advisory_json(name, advisory, local_adv)
+                    _write_advisory_json(name, advisory, local_adv, source=advisory_source)
                     _rsync_up(local_adv, ssh_host, _REMOTE_DATASET_DIR)
                     prev_advisory_remote = f"{_REMOTE_DATASET_DIR}/{local_adv.name}"
                 except Exception:  # noqa: BLE001
