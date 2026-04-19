@@ -172,7 +172,7 @@ Si à la fin de Phase 1 l'écart relatif entre rang-1 et rang-3 en `KL_total(tes
 
 ### Primaire (sélection gagnant)
 
-**KL-total test** : `(1/|S|) · Σ_{s ∈ S} KL(ρ_target_s || ρ_pred_s)` moyenné sur test set, avec S = {phono, sémantique, lexical, syntaxique}. Plus bas = mieux.
+**KL-total test** : `(1/|S|) · Σ_{s ∈ S} KL(ρ_target_s || ρ_pred_s)` moyenné sur test set, avec S = {phono, sem, lex, syntax}. Plus bas = mieux.
 
 ### Secondaires (figure ablation paper)
 
@@ -235,7 +235,7 @@ Studio actuellement occupé par SFT 35B Opus + distill 35B Opus parallèle (ETA 
 
 | ID | Risque | Impact | Mitigation |
 |----|--------|--------|------------|
-| **R1** | JKO oracle n'expose pas `rho_by_species` séparés | **Bloquant** (KL-par-species infaisable) | Phase 0 smoke test valide API avant Phase 1. Si manquant : patch `oracle()` pour retourner dict `{species: rho}`. |
+| **R1** | JKO oracle n'expose pas `rho_by_species` séparés | **Bloquant** (KL-par-species infaisable) | Phase 0 smoke test valide API avant Phase 1. Si manquant : patch `oracle()` pour retourner dict `{species: rho}`. **Résolu 2026-04-19** (commit `0bc4798`): les clés réelles dans `FlowState.rho` sont `{"phono:code", "sem:code", "lex:code", "syntax:code"}`. Convention adoptée : short names (`phono/sem/lex/syntax`) comme API publique, canonical names (`<short>:code`) uniquement à la frontière JKO-oracle, via un mapping `SHORT_TO_CANONICAL` centralisé dans `eval/kl_species.py`. |
 | **R2** | Biais couverture species dans D (Qwen) | Skew KL-par-species en faveur de sémantique | Après génération, mesurer distribution KL-target-moyen par species. Si déséquilibre > 2× : sur-sampler species sous-représentées depuis B. |
 | **R3** | Flip d'ordre archi entre 10k et 50k (tiny-TF under-trained à 10k) | Mauvaise sélection Top-2 | Top-2 déjà choisi (vs Top-1). Kill-switch additionnel : si écart rang-1 vs rang-3 < 15 %, promouvoir les 3 au scale. |
 | **R4** | Leakage corpus dedup incomplet | Inflation artificielle metrics test | Audit manuel 200 paires (val+test) sur 50k ; si > 2 % quasi-identiques, baisser seuil dedup à 0.88 et re-run. |
@@ -326,7 +326,7 @@ $$
 $$
 
 $$
-\mathrm{KL}_{\text{total}} = \frac{1}{|S|} \sum_{s \in S} \mathrm{KL}_{\text{species}}(\rho^{\text{target}}_s, \rho^{\text{pred}}_s), \quad S = \{\text{phono}, \text{sém}, \text{lex}, \text{synt}\}
+\mathrm{KL}_{\text{total}} = \frac{1}{|S|} \sum_{s \in S} \mathrm{KL}_{\text{species}}(\rho^{\text{target}}_s, \rho^{\text{pred}}_s), \quad S = \{\text{phono}, \text{sem}, \text{lex}, \text{syntax}\}
 $$
 
 $$
@@ -345,7 +345,7 @@ $$
 
 ### Table 4.x — Encoder Ablation on Text-Conditioned Bridge Surrogate
 
-| Archi | Params | KL-total ↓ | KL-phono ↓ | KL-sém ↓ | KL-lex ↓ | KL-synt ↓ | MAPE_Δ ↓ | hit@5 ↑ | Latency (ms) | Size (KB) |
+| Archi | Params | KL-total ↓ | KL-phono ↓ | KL-sém ↓ | KL-lex ↓ | KL-syntax ↓ | MAPE_Δ ↓ | hit@5 ↑ | Latency (ms) | Size (KB) |
 |-------|-------:|-----------:|-----------:|---------:|---------:|----------:|---------:|--------:|-------------:|----------:|
 | v0.2 baseline (no text) | 360K | *ref* | *ref* | *ref* | *ref* | *ref* | *ref* | *ref* | 2.1 | 920 |
 | B. MiniLM-distilled (10k) | 2.1M | X.XXX | X.XXX | X.XXX | X.XXX | X.XXX | X.XX | X.XX | X.X | XXX |

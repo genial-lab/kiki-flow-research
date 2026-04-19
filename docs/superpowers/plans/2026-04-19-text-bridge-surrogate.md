@@ -42,7 +42,7 @@
 | `tests/track3_deploy/test_corpus_builder.py` | Dedup exact+embedding, stratification ratios, cross-source dedup, frozen test split |
 | `tests/track3_deploy/test_synth_qwen.py` | Mock tunnel HTTP, parse Qwen response (one query per line), species tagging |
 | `tests/track3_deploy/test_jko_cache.py` | Put/get roundtrip, SHA256 keying, incremental append, miss/hit stats |
-| `tests/track3_deploy/test_jko_oracle_expose.py` | Verify `FlowState.rho` exposes 4 species keyed by `{phono, sem, lex, synt}` with shape `(32,)` each |
+| `tests/track3_deploy/test_jko_oracle_expose.py` | Verify `FlowState.rho` exposes 4 species keyed by `{phono:code, sem:code, lex:code, syntax:code}` with shape `(32,)` each |
 | `tests/track3_deploy/test_encoder_base.py` | ABC contract: forward returns 384-dim, save/load roundtrip |
 | `tests/track3_deploy/test_encoder_hash_mlp.py` | Shape test, determinism (same input → same output), batch forward |
 | `tests/track3_deploy/test_encoder_distilled.py` | MLP forward, distillation loss decreases on toy batch |
@@ -125,7 +125,7 @@ from kiki_flow_core.state import FlowState
 from kiki_flow_core.track3_deploy.state_projection import flatten, unflatten
 
 
-EXPECTED_SPECIES = {"phono", "sem", "lex", "synt"}
+EXPECTED_SPECIES = {"phono:code", "sem:code", "lex:code", "syntax:code"}
 EXPECTED_STACKS_PER_SPECIES = 32
 
 
@@ -161,7 +161,7 @@ def sample_flowstate() -> FlowState:
     """Minimal FlowState with the 4 species, each with 32 stacks, uniform rho."""
     from kiki_flow_core.state import FlowState
     import numpy as np
-    rho = {s: np.ones(32, dtype=np.float32) / 32 for s in ("phono", "sem", "lex", "synt")}
+    rho = {s: np.ones(32, dtype=np.float32) / 32 for s in ("phono:code", "sem:code", "lex:code", "syntax:code")}
     return FlowState(rho=rho)
 ```
 
@@ -229,10 +229,10 @@ def _make_pair() -> dict:
         "state_pre": np.ones(128, dtype=np.float32),
         "state_post": np.ones(128, dtype=np.float32) * 0.9,
         "rho_by_species": {
-            "phono": np.full(32, 0.25, dtype=np.float32),
-            "sem": np.full(32, 0.25, dtype=np.float32),
-            "lex": np.full(32, 0.25, dtype=np.float32),
-            "synt": np.full(32, 0.25, dtype=np.float32),
+            "phono:code": np.full(32, 0.25, dtype=np.float32),
+            "sem:code": np.full(32, 0.25, dtype=np.float32),
+            "lex:code": np.full(32, 0.25, dtype=np.float32),
+            "syntax:code": np.full(32, 0.25, dtype=np.float32),
         },
     }
 
@@ -473,7 +473,7 @@ import numpy as np
 class CorpusEntry:
     text: str
     source: str  # "B", "C", or "D"
-    species: str  # "phono", "sem", "lex", "synt"
+    species: str  # "phono", "sem", "lex", "syntax"  # short names; map to canonical at JKO boundary
 
 
 _SOURCE_PRIORITY = {"B": 0, "C": 1, "D": 2}  # lower = kept on cross-source dup
@@ -639,7 +639,7 @@ class _MockTransport:
 
 
 def test_prompts_cover_four_species() -> None:
-    assert set(SPECIES_PROMPTS.keys()) == {"phono", "sem", "lex", "synt"}
+    assert set(SPECIES_PROMPTS.keys()) == {"phono", "sem", "lex", "syntax"}
 
 
 def test_parse_response_one_per_line() -> None:
@@ -720,7 +720,7 @@ SPECIES_PROMPTS: dict[str, str] = {
         "registre spécialisé (technique, littéraire, scientifique). "
         "Longueur 8-24 mots. Une query par ligne, sans numérotation."
     ),
-    "synt": (
+    "syntax": (
         "Génère une query en français avec structure syntaxique complexe : "
         "dépendances longues, subordonnées imbriquées, ambiguïtés d'attachement. "
         "Longueur 12-32 mots. Une query par ligne, sans numérotation."
@@ -1711,7 +1711,7 @@ def test_kl_zero_when_pred_equals_target() -> None:
     rho = np.full((10, 4, 32), 1.0 / 32, dtype=np.float32)
     result = kl_per_species(rho, rho)
     assert abs(result["total"]) < 1e-6
-    for s in ("phono", "sem", "lex", "synt"):
+    for s in ("phono", "sem", "lex", "syntax"):
         assert abs(result[s]) < 1e-6
 
 
@@ -1772,21 +1772,29 @@ import numpy as np
 
 
 EPS = 1e-8
-SPECIES = ("phono", "sem", "lex", "synt")
+SPECIES_SHORT = ("phono", "sem", "lex", "syntax")
+SPECIES_CANONICAL = ("phono:code", "sem:code", "lex:code", "syntax:code")
+SHORT_TO_CANONICAL = dict(zip(SPECIES_SHORT, SPECIES_CANONICAL))
+# `SPECIES` alias for canonical (what rho_by_species dicts are keyed by)
+SPECIES = SPECIES_CANONICAL
 
 
 def kl_per_species(rho_pred: np.ndarray, rho_target: np.ndarray) -> dict[str, float]:
-    """Shapes (B, 4, 32). Returns {species: KL_mean_over_batch, total: mean_over_species}."""
+    """Shapes (B, 4, 32). Returns {short_name: KL_mean_over_batch, total: mean_over_species}.
+
+    Index i in the (4,) axis corresponds to SPECIES_SHORT[i] and SPECIES_CANONICAL[i].
+    Output keys use SPECIES_SHORT for readability in downstream code and figures.
+    """
     assert rho_pred.shape == rho_target.shape, f"{rho_pred.shape} vs {rho_target.shape}"
     B, S, K = rho_pred.shape
-    assert S == len(SPECIES)
+    assert S == len(SPECIES_SHORT)
     out: dict[str, float] = {}
-    for i, name in enumerate(SPECIES):
+    for i, name in enumerate(SPECIES_SHORT):
         p = rho_pred[:, i, :]
         q = rho_target[:, i, :]
         kl = (q * (np.log(q + EPS) - np.log(p + EPS))).sum(axis=-1).mean()
         out[name] = float(kl)
-    out["total"] = float(np.mean([out[s] for s in SPECIES]))
+    out["total"] = float(np.mean([out[s] for s in SPECIES_SHORT]))
     return out
 
 
@@ -1862,7 +1870,7 @@ def plot_ablation_figure(
     if baseline_v02:
         labels = ["v0.2 (no text)"] + labels
     bottoms = np.zeros(len(labels))
-    colors = {"phono": "#440154", "sem": "#3b528b", "lex": "#21918c", "synt": "#5ec962"}
+    colors = {"phono": "#440154", "sem": "#3b528b", "lex": "#21918c", "syntax": "#5ec962"}
     for species in SPECIES:
         heights = []
         for lab in labels:
@@ -2069,8 +2077,8 @@ def _compute_pair(query: str) -> dict:
     qe = QueryEncoder()
     embedding = qe.encode(query)  # 384-dim
 
-    # Initial state: uniform per species
-    rho0 = {s: np.ones(32, dtype=np.float32) / 32 for s in ("phono", "sem", "lex", "synt")}
+    # Initial state: uniform per species (canonical keys at JKO boundary)
+    rho0 = {s: np.ones(32, dtype=np.float32) / 32 for s in ("phono:code", "sem:code", "lex:code", "syntax:code")}
     state_pre = FlowState(rho=rho0)
 
     # Run one JKO step (existing solver). Replace this import/call with the real one
@@ -2133,7 +2141,7 @@ printf '%s\n' \
   '{"text":"bonjour","source":"B","species":"phono"}' \
   '{"text":"query deux","source":"B","species":"sem"}' \
   '{"text":"test","source":"B","species":"lex"}' \
-  '{"text":"example long","source":"B","species":"synt"}' \
+  '{"text":"example long","source":"B","species":"syntax"}' \
   '{"text":"last one","source":"B","species":"phono"}' \
   > /tmp/smoke_corpus.jsonl
 uv run python -m kiki_flow_core.track3_deploy.jko_oracle_runner \
@@ -2230,7 +2238,7 @@ def train_one_arch(
             spre = np.stack([b["state_pre"] for b in batch])
             spost = np.stack([b["state_post"] for b in batch])
             rho = np.stack([
-                np.stack([b["rho_by_species"][s] for s in ("phono", "sem", "lex", "synt")])
+                np.stack([b["rho_by_species"][s] for s in ("phono:code", "sem:code", "lex:code", "syntax:code")])
                 for b in batch
             ])
             trainer.step(texts, spre, spost, rho)
@@ -2375,7 +2383,7 @@ def test_full_pipeline_under_5_min(tmp_path, monkeypatch) -> None:
     # 1) fake corpus (100 queries, 4 species)
     entries = [
         CorpusEntry(text=f"query {s} {i}", source="B", species=s)
-        for s in ("phono", "sem", "lex", "synt")
+        for s in ("phono", "sem", "lex", "syntax")
         for i in range(25)
     ]
     builder = CorpusBuilder(dedup_threshold=0.99)  # high threshold to skip MiniLM dep
@@ -2387,7 +2395,7 @@ def test_full_pipeline_under_5_min(tmp_path, monkeypatch) -> None:
     for e in entries:
         spre = rng.standard_normal(128, dtype=np.float32)
         spost = spre + rng.standard_normal(128, dtype=np.float32) * 0.05
-        rho = {s: np.abs(rng.standard_normal(32, dtype=np.float32)) for s in ("phono", "sem", "lex", "synt")}
+        rho = {s: np.abs(rng.standard_normal(32, dtype=np.float32)) for s in ("phono:code", "sem:code", "lex:code", "syntax:code")}
         rho = {s: r / r.sum() for s, r in rho.items()}
         cache.put(e.text, {"state_pre": spre, "state_post": spost, "rho_by_species": rho})
 
@@ -2414,7 +2422,7 @@ def test_full_pipeline_under_5_min(tmp_path, monkeypatch) -> None:
             spre = np.stack([b["state_pre"] for b in batch])
             spost = np.stack([b["state_post"] for b in batch])
             rho = np.stack([
-                np.stack([b["rho_by_species"][s] for s in ("phono", "sem", "lex", "synt")])
+                np.stack([b["rho_by_species"][s] for s in ("phono:code", "sem:code", "lex:code", "syntax:code")])
                 for b in batch
             ])
             trainer.step(texts, spre, spost, rho)
@@ -2483,7 +2491,7 @@ def load_psycholinguistic(n: int, seed: int = 0) -> list[CorpusEntry]:
     """Load B source — expects local files under `data/raw/psycho/`."""
     src = Path("data/raw/psycho")
     items = []
-    for species in ("phono", "sem", "lex", "synt"):
+    for species in ("phono", "sem", "lex", "syntax"):
         path = src / f"{species}.txt"
         if not path.exists():
             raise FileNotFoundError(f"missing psycho source: {path}")
@@ -2501,7 +2509,7 @@ def load_generalist(n: int, seed: int = 0) -> list[CorpusEntry]:
         lines = [l.strip() for l in fh if 8 <= len(l.split()) <= 64]
     random.Random(seed).shuffle(lines)
     # Evenly partition to species via round-robin (C entries don't carry species semantics strongly)
-    species_cycle = ("phono", "sem", "lex", "synt")
+    species_cycle = ("phono", "sem", "lex", "syntax")
     return [CorpusEntry(text=l, source="C", species=species_cycle[i % 4]) for i, l in enumerate(lines[:n])]
 
 
@@ -2509,7 +2517,7 @@ def generate_synthetic(n: int) -> list[CorpusEntry]:
     gen = SyntheticGenerator()
     out = []
     per_species = n // 4
-    for species in ("phono", "sem", "lex", "synt"):
+    for species in ("phono", "sem", "lex", "syntax"):
         out.extend(gen.generate_tagged(species, per_species))
     return out
 
@@ -2736,7 +2744,7 @@ scale = json.loads(Path('artifacts/scale50k/summary.json').read_text())
 r10 = {arch: data['test'] for arch, data in pilot['archs'].items()}
 r50 = {arch: data['test'] for arch, data in scale['archs'].items()}
 # baseline v0.2 measured retroactively — fill with placeholder zeros if not available
-baseline = {'phono': 0.0, 'sem': 0.0, 'lex': 0.0, 'synt': 0.0, 'total': 0.0}
+baseline = {'phono': 0.0, 'sem': 0.0, 'lex': 0.0, 'syntax': 0.0, 'total': 0.0}
 plot_ablation_figure(r10, r50, baseline, Path('paper/figures/text_surrogate_ablation'))
 print('figure written')
 "
@@ -2941,7 +2949,7 @@ Adding Task 14.1.5 (in-line below):
 - `JointTrainer` signature `(encoder, lam, lr, seed)` — same across T8 tests, T12 sweep, T13 integration.
 - `JKOCache.put(query, pair)` / `get(query) -> dict | None` — consistent T2 → T11 → T12.
 - `rho_by_species` key — consistent with `FlowState.rho` dict structure confirmed in T1.
-- Species tuple `("phono", "sem", "lex", "synt")` — used consistently. **Note: T1 may reveal the real keys differ** (e.g., `"phonological"`); in that case, Step 1.3 patches everything.
+- Species keys: T1 confirmed the real JKO keys are `("phono:code", "sem:code", "lex:code", "syntax:code")`. Plan adopts **short-name / canonical-name split** — short names (`phono/sem/lex/syntax`) as public API, canonical names (`<short>:code`) only at the JKO-oracle boundary via `SHORT_TO_CANONICAL` mapping in `kl_species.py`.
 
 ---
 
