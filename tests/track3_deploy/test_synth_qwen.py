@@ -5,10 +5,17 @@ from __future__ import annotations
 import httpx
 import pytest
 
+from kiki_flow_core.track3_deploy.data import synth_qwen
 from kiki_flow_core.track3_deploy.data.synth_qwen import (
     SPECIES_PROMPTS,
     SyntheticGenerator,
 )
+
+
+@pytest.fixture(autouse=True)
+def _fast_backoff(monkeypatch) -> None:
+    monkeypatch.setattr(synth_qwen, "_HTTP_BACKOFF_BASE_SEC", 0.0)
+
 
 EXPECTED_SPECIES = {"phono", "sem", "lex", "syntax"}
 
@@ -74,3 +81,40 @@ def test_unknown_species_raises() -> None:
     gen = SyntheticGenerator(base_url="http://mock")
     with pytest.raises(ValueError, match="Unknown species"):
         gen.generate_batch("unknown_species", n=1)
+
+
+_EMPTY_QWEN_N = 5  # target for infinite-loop test
+
+
+def test_stall_detection_raises(caplog) -> None:
+    """If Qwen returns 0 new queries twice in a row, abort."""
+    responder = _MockResponder(["a\nb\n", "a\nb\n", "a\nb\n"])  # same 2 queries every time
+    transport = httpx.MockTransport(responder)
+    client = httpx.Client(transport=transport)
+    gen = SyntheticGenerator(base_url="http://mock", client=client, batch_size=3)
+    with pytest.raises(Exception, match="(0 new queries|Failed to generate)"):
+        gen.generate_batch("phono", n=_EMPTY_QWEN_N)
+
+
+def test_http_5xx_retries_then_raises() -> None:
+    """Three consecutive 5xx responses should raise after retries exhausted."""
+
+    def _responder(request):
+        return httpx.Response(500, json={"error": "server"})
+
+    transport = httpx.MockTransport(_responder)
+    client = httpx.Client(transport=transport)
+    gen = SyntheticGenerator(base_url="http://mock", client=client)
+    with pytest.raises(Exception, match="attempts to .* failed"):
+        gen.generate_batch("phono", n=1)
+
+
+def test_malformed_choices_raises() -> None:
+    def _responder(request):
+        return httpx.Response(200, json={"choices": []})
+
+    transport = httpx.MockTransport(_responder)
+    client = httpx.Client(transport=transport)
+    gen = SyntheticGenerator(base_url="http://mock", client=client)
+    with pytest.raises(Exception, match="empty choices|Failed to generate"):
+        gen.generate_batch("phono", n=1)
