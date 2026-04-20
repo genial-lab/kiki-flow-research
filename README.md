@@ -40,7 +40,7 @@ coverage, strict ruff + mypy.
 ## Install
 
 ```bash
-git clone https://github.com/electron-rare/kiki-flow-research.git
+git clone https://github.com/hypneum-lab/kiki-flow-research.git
 cd kiki-flow-research
 uv sync --all-extras
 uv run pre-commit install
@@ -178,7 +178,7 @@ Draft pre-print, tagged `paper-v0.4-draft`:
 
 ```bibtex
 @unpublished{kiki-flow-2026,
-  author = {L'Electron Rare},
+  author = {Saillant, Clément},
   title  = {Hybrid Cognitive-Fluid Dynamics for Language Production:
             A Wasserstein Gradient Flow Perspective},
   year   = 2026,
