@@ -42,12 +42,12 @@ def _tokenize(text: str) -> np.ndarray:
     return arr
 
 
-class _TinyTFBlock(nn.Module):  # type: ignore[misc]
+class _TinyTFBlock(nn.Module):
     d_model: int
     n_heads: int
     d_ff: int
 
-    @nn.compact  # type: ignore[misc]
+    @nn.compact
     def __call__(self, x: jnp.ndarray, mask: jnp.ndarray) -> jnp.ndarray:
         # Pre-norm attention
         h = nn.LayerNorm()(x)
@@ -65,14 +65,14 @@ class _TinyTFBlock(nn.Module):  # type: ignore[misc]
         return x + h
 
 
-class _TinyTFModule(nn.Module):  # type: ignore[misc]
+class _TinyTFModule(nn.Module):
     d_model: int = _DEFAULT_D_MODEL
     n_layers: int = _DEFAULT_N_LAYERS
     n_heads: int = _DEFAULT_N_HEADS
     d_ff: int = _DEFAULT_D_FF
     output_dim: int = _DEFAULT_OUTPUT_DIM
 
-    @nn.compact  # type: ignore[misc]
+    @nn.compact
     def __call__(self, tokens: jnp.ndarray) -> jnp.ndarray:
         emb = nn.Embed(VOCAB_SIZE, self.d_model)(tokens)
         pos = self.param(
