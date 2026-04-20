@@ -30,6 +30,12 @@ keywords:
   - research engine
 identifiers:
   - type: doi
+    value: 10.5281/zenodo.19666755
+    description: "Zenodo concept DOI (resolves to latest version)"
+  - type: doi
+    value: 10.5281/zenodo.19666756
+    description: "Zenodo paper-v0.8-draft version DOI"
+  - type: doi
     value: 10.17605/OSF.IO/Q6JYN
     description: "Parent research program pre-registration (dreamOfkiki Cycle 1)"
   - type: url
