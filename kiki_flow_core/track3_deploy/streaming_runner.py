@@ -45,7 +45,7 @@ class StreamingRunner:
         self.state = new_state.model_copy(update={"tau": self.state.tau + 1})
         advisory: dict[str, Any] = {
             "tau": self.state.tau,
-            "state_summary": {k: float(v.mean()) for k, v in self.state.rho.items()},
+            "state_summary": {k: v.astype(np.float32).copy() for k, v in self.state.rho.items()},
         }
         self.routing.publish_advisory(advisory)
         return advisory

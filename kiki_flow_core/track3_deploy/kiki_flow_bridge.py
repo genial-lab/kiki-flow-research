@@ -57,10 +57,9 @@ class KikiFlowBridge:
                 weights_path, state_dim=state_dim, embed_dim=embed_dim, hidden=hidden
             )
             encoder = QueryEncoder(use_stub=use_stub_encoder)
-            stacks = [f"stack_{i:02d}" for i in range(n_stacks)]
-            orthos = ["phono", "lex", "syntax", "sem"]
+            species = ["phono:code", "sem:code", "lex:code", "syntax:code"]
             initial = FlowState(
-                rho={f"{o}:{s}": np.array([1.0 / n_stacks]) for o in orthos for s in stacks},
+                rho={sp: np.ones(n_stacks, dtype=np.float32) / n_stacks for sp in species},
                 P_theta=np.zeros(8),
                 mu_curr=np.array([1.0]),
                 tau=0,
@@ -84,22 +83,14 @@ class KikiFlowBridge:
             return None
         try:
             advisory = self._runner.on_query(query)
-            summary: dict[str, float] = advisory.get("state_summary", {})
+            summary: dict[str, np.ndarray] = advisory.get("state_summary", {})
             if not summary:
                 return None
             weights = np.zeros(self.n_stacks, dtype=np.float32)
-            for key, val in summary.items():
-                if ":" not in key:
-                    continue
-                _ortho, stack_name = key.split(":", 1)
-                if not stack_name.startswith("stack_"):
-                    continue
-                try:
-                    idx = int(stack_name.split("_", 1)[1])
-                except ValueError:
-                    continue
-                if 0 <= idx < self.n_stacks:
-                    weights[idx] += float(val) / N_ORTHO
+            for vec in summary.values():
+                v = np.asarray(vec, dtype=np.float32)
+                if v.shape == (self.n_stacks,):
+                    weights += v / N_ORTHO
             return weights
         except Exception as e:  # noqa: BLE001
             logger.warning("kiki-flow advisory failed, passthrough: %s", e)
