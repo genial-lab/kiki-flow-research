@@ -19,37 +19,44 @@ We report per-species KL divergence \( D_{\mathrm{KL}}(\rho^{\mathrm{pred}}_s \|
 
 \subsection{Results}
 
-\begin{quote}
-\noindent\textbf{Preliminary results.} The numbers below are from an N=230
-plumbing-validation run (smoke500: 20 stub psycholinguistic + 10 generalist +
-200 Qwen3.5-35B synthetic queries; train/val/test = 182/20/28; D\_tiny\_tf
-trained on CPU due to an unconfigured CUDA backend on that run, now fixed).
-They confirm pipeline correctness but are not statistically conclusive. Final
-numbers from the 10k pilot and 50k scale will be inserted upon completion of
-T22 and T23.
-\end{quote}
+Pilot and scale results complete T22 and T23 respectively, with a Top-2 kill-switch (R3) triggered between them. The pilot runs all three encoder families on an N\,=\,8\,189 corpus (B\,=\,200 psycho seeds + C\,=\,49\,926 generalist Wikipedia, D source unavailable at pilot generation time due to a silent synth fallback, see \S5.5 caveats); ranking is unambiguous (gap 29.6\,\%, above the 15\,\% threshold) so only the Top-2 architectures are carried forward to scale. The scale phase rebuilds the corpus from 10\,000 canonical psycho seeds (2500 per species via stricter Qwen prompts), 20\,000 Wikipedia generalist, and 20\,000 Qwen3.5-35B species-aware synthetic queries (after 0.92 cosine dedup: B\,=\,9\,911 / C\,=\,19\,986 / D\,=\,19\,983, total\,=\,49\,880).
 
-Figure~\ref{fig:ablation} reports the species breakdown and 10k\,$\to$\,50k scaling. Table~\ref{tab:results} summarizes the headline metrics.
+Figure~\ref{fig:ablation} reports the species breakdown and the 10k\,$\to$\,50k scaling. Table~\ref{tab:results} summarizes the headline metrics. Table~\ref{tab:scale} gives the Top-2 scale50k numbers.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figures/preliminary_ablation.pdf}
-  \caption{(a) Per-species KL divergence at 50k for the three encoder architectures alongside a query-agnostic ZeroF baseline. (b) Scaling behavior 10k \(\to\) 50k. Lower is better. (preliminary, smoke500 N=230)}
+  \caption{(a) Per-species KL divergence at 10k for the three encoder architectures (pilot10k, R3 kill-switch gap 29.6\,\%). (b) Scaling behavior 10k\,$\to$\,50k on Top-2 \{C hash-MLP, B distilled\}. Lower is better.}
   \label{fig:ablation}
 \end{figure}
 
 \begin{table}[t]
   \centering
-  \begin{tabular}{lccccc}
+  \begin{tabular}{lcccccc}
     \toprule
     Encoder & KL\(_{\mathrm{total}}\) & KL\(_{\mathrm{phono}}\) & KL\(_{\mathrm{sem}}\) & KL\(_{\mathrm{lex}}\) & KL\(_{\mathrm{syntax}}\) & Params \\
     \midrule
-    ZeroF baseline (no text) & --- & --- & --- & --- & --- & --- \\
-    B distilled-MiniLM & 0.10334 & 0.10162 & 0.11062 & 0.10183 & 0.09930 & 2.44\,M \\
-    C hash-MLP & 0.10295 & 0.10088 & 0.11043 & 0.10160 & 0.09887 & 0.65\,M \\
-    D tiny-transformer & 0.13115 & 0.13439 & 0.13549 & 0.13026 & 0.12447 & 3.36\,M \\
+    C hash-MLP (winner)         & \textbf{0.0785} & 0.0785 & 0.0798 & 0.0805 & 0.0755 & 0.65\,M \\
+    B distilled-MiniLM (runner-up) & 0.0812 & 0.0811 & 0.0826 & 0.0832 & 0.0778 & 2.44\,M \\
+    D tiny-transformer (early-stop ep.\,18) & 0.1018 & 0.1025 & 0.1039 & 0.1034 & 0.0972 & 3.36\,M \\
     \bottomrule
   \end{tabular}
-  \caption{Headline metrics on the held-out test split (preliminary, smoke500 N=230). B/C/D values from smoke500 validation run; final numbers pending T22/T23.}
+  \caption{Pilot10k ablation headline metrics on the held-out test split (N\,=\,820, 10\,\% of corpus). R3 gap rank-1\,$\to$\,rank-3 = 29.6\,\%, above the 15\,\% threshold; Top-2 \{C, B\} promoted to scale50k.}
   \label{tab:results}
 \end{table}
+
+\begin{table}[t]
+  \centering
+  \begin{tabular}{lcccccc}
+    \toprule
+    Encoder & KL\(_{\mathrm{total}}\) & KL\(_{\mathrm{phono}}\) & KL\(_{\mathrm{sem}}\) & KL\(_{\mathrm{lex}}\) & KL\(_{\mathrm{syntax}}\) & MAPE\(_{\Delta}\) \\
+    \midrule
+    C hash-MLP (winner, early-stop ep.\,16)   & \textbf{0.0736} & 0.0741 & 0.0744 & 0.0743 & 0.0715 & 7.91 \\
+    B distilled-MiniLM (full 20 epochs)        & 0.0738 & 0.0744 & 0.0746 & 0.0745 & 0.0717 & 7.87 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Scale50k Top-2 ablation headline metrics on the held-out test split (N\,=\,4\,996, 10\,\% of scale corpus). Scale reduces total KL by 6.2\,\% (C) and 9.1\,\% (B) versus pilot10k; ranking preserved with gap compressed to 0.3\,\%.}
+  \label{tab:scale}
+\end{table}
+
+The pure-NumPy C hash-MLP encoder (0.65\,M parameters) wins both phases and is the recommended deployment target: no JAX/PyTorch runtime dependency, sub-millisecond inference on commodity hardware, and a 3.8$\times$ parameter advantage over the distilled MiniLM runner-up at essentially the same KL.
