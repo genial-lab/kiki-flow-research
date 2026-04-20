@@ -1335,7 +1335,7 @@ uv run python -m kiki_flow_core.track3_deploy.jko_oracle_runner \
 
 Expected: ~10k processed, 0 skipped (fresh cache). `.jko_cache/` ~300 MB.
 
-- [ ] **Step 22.6: Rsync cache back to KXKM, run sweep**
+- [x] **Step 22.6: Rsync cache back to KXKM, run sweep**
 
 ```bash
 rsync -av studio:kiki-flow-research/.jko_cache/ kxkm-ai:kiki-flow-research/.jko_cache/
@@ -1352,7 +1352,7 @@ uv run python -m kiki_flow_core.track3_deploy.sweep \
 
 Expected: 3 architectures trained, 3 checkpoints + summary.json.
 
-- [ ] **Step 22.7: Pull summary + decide Top-k**
+- [x] **Step 22.7: Pull summary + decide Top-k**
 
 ```bash
 rsync -av kxkm-ai:kiki-flow-research/artifacts/pilot10k/summary.json /tmp/
