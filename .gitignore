@@ -7,7 +7,14 @@ __pycache__/
 .ruff_cache/
 htmlcov/
 .coverage
+.coverage.*
+.coverage[ ]*
 *.npz.bak
 bench/runs/
 bench/reports/
 .DS_Store
+
+# Local-only ephemera
+.remember/
+data/
+artifacts/
