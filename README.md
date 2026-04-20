@@ -3,7 +3,11 @@
 **A Wasserstein gradient flow engine for LLM consolidation, grounded in the
 Levelt–Baddeley model of language production.**
 
-[![CI](https://github.com/electron-rare/kiki-flow-research/actions/workflows/ci.yml/badge.svg)](https://github.com/electron-rare/kiki-flow-research/actions)
+Upstream numerical engine of the *dreamOfkiki* research program, part of
+[Hypneum Lab](https://github.com/hypneum-lab). Author: Clément Saillant
+(L'Electron Rare).
+
+[![CI](https://github.com/hypneum-lab/kiki-flow-research/actions/workflows/ci.yml/badge.svg)](https://github.com/hypneum-lab/kiki-flow-research/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 ---
@@ -178,7 +182,7 @@ Draft pre-print, tagged `paper-v0.4-draft`:
   title  = {Hybrid Cognitive-Fluid Dynamics for Language Production:
             A Wasserstein Gradient Flow Perspective},
   year   = 2026,
-  url    = {https://github.com/electron-rare/kiki-flow-research},
+  url    = {https://github.com/hypneum-lab/kiki-flow-research},
   note   = {Draft; code, data, and figures released under MIT at tag paper-v0.4-draft}
 }
 ```
