@@ -1318,7 +1318,7 @@ uv run python -m kiki_flow_core.track3_deploy.train_g_jepa \
 
 Expected: ~1-2 min wall clock on GrosMac (JAX CPU). Loss should decrease monotonically across epochs.
 
-- [ ] **Step 22.5: Rsync corpus + g_JEPA weights to Studio, run JKO oracle**
+- [x] **Step 22.5: Rsync corpus + g_JEPA weights to Studio, run JKO oracle**
 
 ```bash
 rsync -av data/processed/pilot10k/ studio:kiki-flow-research/data/processed/pilot10k/
