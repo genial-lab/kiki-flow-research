@@ -258,14 +258,33 @@ Three parallel tracks share the formal core:
         LoRA stacks), targeted at nightly offline consolidation.
   \item \textbf{Track 2 (paper)} uses $N=10\,000$ Langevin particles on
         four pure species, with full POT Sinkhorn and a multi-scale
-        loop. Produces the figures in Section \ref{sec:exp}.
+        loop. The JKO gradient step operates on the scalar energy of
+        Eq.~\eqref{eq:freeenergy} (which sees $J_{\mathrm{sym}}$ only);
+        the operator-splitting step integrates $b^{\mathrm{phono}}$
+        (Eq.~\eqref{eq:phono-drift}). Integration of the linear
+        asymmetric drift $b^{\mathrm{asym}}$ from
+        Eq.~\eqref{eq:drift-asym} via a second splitting pass is a
+        natural extension but is not exercised in the experiments
+        below. Track 2 produces the figures in
+        Section~\ref{sec:exp}.
   \item \textbf{Track 3 (deploy)} distills Track 2 trajectories into a
         three-layer MLP with residual skip and pure-NumPy inference;
         safetensors weights; see Section \ref{sec:exp} for latency.
+  \item \textbf{Ablation tooling.} A companion
+        \texttt{SeparableEnergy} drops the $J$ coupling entirely
+        ($F = F_{\mathrm{sep}}$), and five coupling modes
+        (\textsc{separable}, \textsc{symmetric-dell},
+        \textsc{dell-full}, \textsc{symmetric-levelt},
+        \textsc{levelt-full}) are selectable at sweep time to isolate
+        the contributions of (i) coupling presence, (ii) asymmetric
+        drift, and (iii) topology choice. See
+        Section~\ref{sec:coupling-ablation}.
 \end{itemize}
 
-The full open-source implementation has 93 unit tests at 95\% coverage
-under strict mypy and ruff.
+The full open-source implementation has 256 unit tests under strict
+mypy and ruff, plus the $\lambda$-monotonicity check script
+\texttt{experiments/check\_lambda\_monotonicity.py} used in
+Section~\ref{sec:lambda-mono}.
 
 \section{Experiments}
 \label{sec:exp}
@@ -347,7 +366,13 @@ $51\%$ below maximum), stronger than the $35\%$ below maximum achieved
 by the coarse sweep. The Turing coupling $\gamma$ has negligible effect
 across both sweeps. Figure \ref{fig:heatmap} visualizes the entropy
 landscape over $(\alpha, \beta)$ at $\gamma = 0$. Full sweep data is in
-\texttt{paper/hyperparam\_sweep\_dense.json}.
+\texttt{paper/hyperparam\_sweep\_dense.json}. Anticipating
+Section~\ref{sec:coupling-ablation}, we note that the \textsc{separable}
+baseline (no $J$ coupling) reaches $1.9612$ bits at the same
+$(\alpha, \beta)$, i.e.\ $-0.006$ bits \emph{lower} than \textsc{dell-full}
+at $1.9675$, indicating that specialization at this operating point is
+driven by the per-species potentials $V_i$ and the entropic KL prior
+rather than by the $J$ coupling itself.
 
 \begin{figure}[h]
   \centering
@@ -358,10 +383,95 @@ landscape over $(\alpha, \beta)$ at $\gamma = 0$. Full sweep data is in
   \label{fig:heatmap}
 \end{figure}
 
-\subsection{Free-energy decay}
-Figure \ref{fig:fdecay} plots $F[\rho^\tau]$ along seed~0's trajectory.
-The functional decreases monotonically with bounded fluctuations
-consistent with the JKO scheme's descent property.
+\subsection{Coupling-mode ablation}
+\label{sec:coupling-ablation}
+
+To isolate the contribution of the inter-species coupling $J$ from
+that of the per-species potentials, we ran a $45$-cell sweep over
+$\alpha \in \{1, 5, 10\}$, $\beta \in \{0.5, 1, 2\}$, $\gamma = 0$,
+five coupling modes, and five seeds
+($225$ simulations, $220\,\mathrm{s}$ on GrosMac M5)~%
+{\small\% from paper/hyperparam\_sweep\_coupling\_modes.json and
+paper/coupling\_modes\_summary.md}. The five modes are
+\textsc{separable} ($J = 0$, $F = F_{\mathrm{sep}}$);
+\textsc{symmetric-dell} and \textsc{symmetric-levelt}, which zero
+out $J^{\mathrm{asym}}$ and keep $J^{\mathrm{sym}}$ of the
+corresponding topology; and \textsc{dell-full} and
+\textsc{levelt-full}, which use the unmodified $J$ of each topology.
+
+At the canonical operating point $(\alpha, \beta) = (10, 1)$, with
+five-seed standard deviation $\sigma \approx 0.02$ bits:
+\begin{center}
+\begin{tabular}{lcc}
+\hline
+Mode & $\bar H$ (bits) & $\Delta H$ vs \textsc{dell-full} \\
+\hline
+\textsc{separable}        & $1.9612$ & $-0.0063$ \\
+\textsc{symmetric-dell}   & $1.9675$ & $\phantom{-}0.0000$ \\
+\textsc{dell-full}        & $1.9675$ & $\phantom{-}0.0000$ \\
+\textsc{symmetric-levelt} & $1.9687$ & $+0.0012$ \\
+\textsc{levelt-full}      & $1.9687$ & $+0.0012$ \\
+\hline
+\end{tabular}
+\end{center}
+
+Three readings follow. First, \textsc{separable} is $0.32\%$
+\emph{lower} in entropy than \textsc{dell-full}: the hierarchical
+coupling is not responsible for the specialization observed in the
+dense sweep, the per-species potentials $V_i$ and the entropic KL
+prior are. Second, \textsc{symmetric-\textasteriskcentered} and
+\textsc{\textasteriskcentered-full} coincide to six decimals across
+all nine $(\alpha, \beta)$ cells, matching the analytic prediction of
+Eq.~\eqref{eq:freeenergy}: the antisymmetric tensor contraction
+vanishes against the symmetric outer product, and because the current
+discretization does not apply a second splitting pass for
+$b^{\mathrm{asym}}$ (see Section~\ref{sec:impl}), the asymmetric drift
+is inert on the stationary entropy. Third, \textsc{dell-full} and
+\textsc{levelt-full} differ by $0.0012$ bits, under $0.06\%$ of the
+$2.04$ bit specialization gap and well within $\sigma$: the Dell and
+Levelt coupling topologies produce indistinguishable stationary
+specialization on this problem, so the architectural choice between
+them --- while substantively different as a theoretical commitment ---
+is empirically second-order. Figure~\ref{fig:coupling-modes} shows the
+full $(\alpha, \beta)$ heatmap per mode and the grouped bar chart at
+the canonical operating point.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.98\textwidth]{figures/coupling_modes_heatmap.png}\\[0.3em]
+  \includegraphics[width=0.55\textwidth]{figures/coupling_modes_barplot.png}
+  \caption{Coupling-mode ablation. Top: five panels of mean entropy
+    over $(\alpha, \beta)$, one per mode. Bottom: bar plot at
+    $(\alpha, \beta) = (10, 1)$ with standard-error bars across five
+    seeds. All five modes collapse to within $\sigma$ of each other.}
+  \label{fig:coupling-modes}
+\end{figure}
+
+\subsection{Free-energy decay and empirical contraction rate}
+\label{sec:exp-lambda}
+
+Figure~\ref{fig:fdecay} plots $F[\rho^\tau]$ along seed~0's
+trajectory. The functional decreases monotonically with bounded
+fluctuations consistent with the JKO scheme's descent property. To
+quantify the contraction rate of the \emph{pair} dynamics that
+Section~\ref{sec:lambda-mono} calls $\lambda$-monotonicity, we ran
+\texttt{experiments/check\_lambda\_monotonicity.py} on three
+independent initial-condition pairs
+(seed bases $\{42, 43, 44\}$ vs
+$\{1042, 1043, 1044\}$), $50$ slow steps each at
+$h = 2 \times 10^{-3}$, $n_{\mathrm{inner}} = 1$, fitting
+$\log d(t) = \log d(0) - 2 \hat\lambda \cdot t$ on the Sinkhorn
+divergence $d(t) = \sum_i S_\varepsilon(\rho_i(t), \rho_i'(t))$. The
+fit yields
+\begin{equation*}
+  \hat\lambda \;=\; 67.79 \pm 3.78
+  \qquad (\sigma / \bar{\hat\lambda} = 5.6\%),
+\end{equation*}
+with all three trajectories monotone-decreasing over the full
+$50$~steps~{\small\% from paper/lambda\_monotonicity.json}. This
+is the quantitative backing for the
+Conger--Hoffmann--Mazumdar--Ratliff~\cite{conger2025monotone} regime
+claim of Section~\ref{sec:lambda-mono}.
 
 \begin{figure}[h]
   \centering
