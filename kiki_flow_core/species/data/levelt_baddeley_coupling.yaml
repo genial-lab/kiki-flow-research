@@ -1,15 +1,34 @@
 # Coupling matrix J[i,j] = strength of activation flow from species j to species i.
+# Variant: LEVELT-BADDELEY (canonical, syntactic-detour dominated).
+#
+# This variant reallocates the Dell-style direct sem->lex shortcut (0.60) into
+# the syntactic detour: sem->syntax = 0.45 and syntax->lex = 0.40, leaving only
+# a weak residual sem->lex = 0.10. Result: syntactic encoding is the dominant
+# intermediate between semantic intention and lexical selection, as prescribed
+# by Levelt, Roelofs & Meyer (1999)'s serial WEAVER++ architecture. Baddeley's
+# phonological-loop backedge (lex<-phono = 0.30) and self-consolidation
+# diagonals (phono 0.20, lex 0.15, syntax 0.20, sem 0.85) are unchanged.
+#
+# Rationale per non-diagonal entry:
+#   phono  <- lex    = 0.50  Levelt's main forward output arrow (lexeme->phono).
+#   lex    <- syntax = 0.40  syntactic framing of lexical access (Levelt §3.3).
+#   syntax <- sem    = 0.45  semantic-to-syntactic encoding (Levelt §3.2).
+#   lex    <- phono  = 0.30  Baddeley phonological-loop backedge (preserved).
+#   lex    <- sem    = 0.10  weak residual direct bypass (vs 0.60 in Dell).
+#
 # References:
-#   Levelt, W.J.M. (1989). Speaking: From Intention to Articulation. MIT Press.
-#   Baddeley, A. (2000). The episodic buffer. Trends in Cognitive Sciences, 4(11), 417-423.
+#   Levelt, W. J. M., Roelofs, A., & Meyer, A. S. (1999). A theory of lexical
+#     access in speech production. Behavioral and Brain Sciences, 22(1), 1-38.
+#   Baddeley, A. (2000). The episodic buffer. Trends in Cognitive Sciences,
+#     4(11), 417-423.
 species_order: [phono, lex, syntax, sem]
 coupling_matrix:
   # row = receiver, col = sender
-  # phono receives from: lex (strong forward), itself (rehearsal), sem (weak)
+  # phono <- [phono, lex, syntax, sem]
   - [0.20, 0.50, 0.05, 0.05]
-  # lex receives from: sem (spreading activation, strong), phono (feedback for repair), syntax
-  - [0.30, 0.15, 0.20, 0.60]
-  # syntax receives from: lex (lemma drives frame), itself
-  - [0.00, 0.40, 0.20, 0.10]
-  # sem receives mostly from itself + weak from lex
-  - [0.00, 0.10, 0.00, 0.85]
+  # lex   <- [phono, lex, syntax, sem]
+  - [0.30, 0.15, 0.40, 0.10]
+  # syntax<- [phono, lex, syntax, sem]
+  - [0.00, 0.10, 0.20, 0.45]
+  # sem   <- [phono, lex, syntax, sem]
+  - [0.00, 0.05, 0.00, 0.85]

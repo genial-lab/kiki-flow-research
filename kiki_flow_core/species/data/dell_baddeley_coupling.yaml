@@ -1,0 +1,29 @@
+# Coupling matrix J[i,j] = strength of activation flow from species j to species i.
+# Variant: DELL-BADDELEY (interactive lexical network with direct sem->lex shortcut).
+#
+# This is the original 4x4 J used in the paper's default run. Phenomenologically
+# closer to Dell (1986)'s interactive two-step spreading-activation network than
+# to Levelt (1999)'s strictly serial production model: the sem->lex path is
+# strong (0.60) and the sem->syntax path is weak (0.10), so semantic activation
+# bypasses the syntactic encoding stage. Baddeley's phonological-loop backedge
+# (lex<-phono = 0.30) is preserved.
+#
+# References:
+#   Dell, G. S. (1986). A spreading-activation theory of retrieval in sentence
+#     production. Psychological Review, 93(3), 283-321.
+#   Baddeley, A. (2000). The episodic buffer. Trends in Cognitive Sciences,
+#     4(11), 417-423.
+#   Levelt, W. J. M., Roelofs, A., & Meyer, A. S. (1999). A theory of lexical
+#     access in speech production. Behavioral and Brain Sciences, 22(1), 1-38.
+#     (contrast: Levelt variant lives in levelt_baddeley_coupling.yaml)
+species_order: [phono, lex, syntax, sem]
+coupling_matrix:
+  # row = receiver, col = sender
+  # phono receives from: lex (strong forward), itself (rehearsal), sem (weak)
+  - [0.20, 0.50, 0.05, 0.05]
+  # lex receives from: sem (spreading activation, strong), phono (feedback for repair), syntax
+  - [0.30, 0.15, 0.20, 0.60]
+  # syntax receives from: lex (lemma drives frame), itself
+  - [0.00, 0.40, 0.20, 0.10]
+  # sem receives mostly from itself + weak from lex
+  - [0.00, 0.10, 0.00, 0.85]
