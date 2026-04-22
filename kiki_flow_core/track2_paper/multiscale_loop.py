@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np
@@ -65,6 +66,7 @@ class MultiscaleLoop:
         n_slow: int,
         support: np.ndarray,
         dt_fast: float = 1e-3,
+        post_jko_hook: Callable[[FlowState], FlowState] | None = None,
     ) -> None:
         self.sim = sim
         self.jko = jko
@@ -72,6 +74,7 @@ class MultiscaleLoop:
         self.n_slow = n_slow
         self.support = support
         self.dt_fast = dt_fast
+        self.post_jko_hook = post_jko_hook
         self._is_mlx = type(sim).__name__ == "MLXParticleSimulator"
 
     def run(self, seed: int) -> dict[str, Any]:
@@ -96,6 +99,8 @@ class MultiscaleLoop:
                 )
             state = _particles_to_flow_state(particles, self.support, names)
             state = self.jko.step(state)
+            if self.post_jko_hook is not None:
+                state = self.post_jko_hook(state)
             trajectory.append(state)
         return {
             "seed": seed,

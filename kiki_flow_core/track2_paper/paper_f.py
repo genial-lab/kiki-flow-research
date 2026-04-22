@@ -111,3 +111,39 @@ class T2FreeEnergy(FreeEnergy):
         cons = self._grad_conservative(rhos)
         drift = self._drift_nonconservative(rhos)
         return [c + d for c, d in zip(cons, drift, strict=True)]
+
+    def apply_drift_splitting(self, state: FlowState, h_drift: float = 0.01) -> FlowState:
+        """Operator-splitting step for the antisymmetric linear drift b_asym = J_asym @ rho.
+
+        Applies M = exp(h_drift * J_asym) per grid cell to the 4-vector of
+        per-species densities. Since J_asym is antisymmetric, M is orthogonal,
+        so the total activity sum_i rho_i(x) is preserved at every grid cell x.
+        Per-species total mass can drift slightly under the rotation (individual
+        species are not preserved axis-wise); we rescale each species back to its
+        prior total mass so the simplex constraint (non-negative, sums to 1) still
+        holds for every rho_i after the step.
+
+        A small Taylor expansion is used for the matrix exponential so the repo
+        does not take a direct dependency on scipy. For ``h_drift`` of order 0.01
+        and ``||h_drift * J_asym||_2`` of order 3e-3 the 4-term truncation error
+        is below 1e-10 in operator norm.
+        """
+        names = self.species.species_names()
+        # Shape (n_species, grid).
+        old_rho = np.stack([np.asarray(state.rho[n]) for n in names], axis=0)
+        old_mass = old_rho.sum(axis=1)
+        # Matrix exponential via Taylor series: accurate to ~(h*||J||)^4 / 24.
+        hj = h_drift * self._J_asym
+        eye = np.eye(hj.shape[0])
+        hj2 = hj @ hj
+        hj3 = hj2 @ hj
+        hj4 = hj3 @ hj
+        m = eye + hj + hj2 / 2.0 + hj3 / 6.0 + hj4 / 24.0
+        new_rho_raw = m @ old_rho
+        # Clip tiny numerical negatives that can arise near simplex boundary.
+        new_rho_raw = np.maximum(new_rho_raw, 0.0)
+        new_mass = new_rho_raw.sum(axis=1)
+        scale = old_mass / np.maximum(new_mass, 1e-12)
+        new_rho = new_rho_raw * scale[:, None]
+        new_rho_dict = {names[i]: new_rho[i] for i in range(len(names))}
+        return state.model_copy(update={"rho": new_rho_dict})

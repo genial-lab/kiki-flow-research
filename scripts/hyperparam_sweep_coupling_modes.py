@@ -131,7 +131,14 @@ def _species_for_mode(mode: str) -> CanonicalSpecies:
 # ---- One-shot solve -------------------------------------------------------
 
 
-def run_one(alpha: float, beta: float, gamma: float, mode: str, seed: int) -> dict[str, Any]:
+def run_one(
+    alpha: float,
+    beta: float,
+    gamma: float,
+    mode: str,
+    seed: int,
+    apply_asym_drift: bool = False,
+) -> dict[str, Any]:
     species = _species_for_mode(mode)
     names = species.species_names()
     support = np.linspace(-2, 2, GRID).reshape(-1, 1)
@@ -148,7 +155,29 @@ def run_one(alpha: float, beta: float, gamma: float, mode: str, seed: int) -> di
         apply_w2_prox=False,
     )
     sim = MLXParticleSimulator(species=species, n_particles=500, latent_dim=2, seed=seed)
-    loop = MultiscaleLoop(sim=sim, jko=jko, n_fast=200, n_slow=30, support=support)
+    # For the "*-full" modes, apply an operator-splitting step of the
+    # non-conservative antisymmetric drift b_asym = J_asym @ rho after each JKO
+    # step. "symmetric-*" and "separable" have J_asym = 0 (or no J at all), so
+    # the hook would be the identity map and is skipped for clarity.
+    post_jko_hook = None
+    if (
+        apply_asym_drift
+        and mode in ("dell-full", "levelt-full")
+        and isinstance(f_func, T2FreeEnergy)
+    ):
+        energy_for_hook = f_func
+
+        def post_jko_hook(state, _e=energy_for_hook):  # noqa: E501
+            return _e.apply_drift_splitting(state, h_drift=0.01)
+
+    loop = MultiscaleLoop(
+        sim=sim,
+        jko=jko,
+        n_fast=200,
+        n_slow=30,
+        support=support,
+        post_jko_hook=post_jko_hook,
+    )
     manifest = loop.run(seed=seed)
     final = manifest["trajectory"][-1]
 
@@ -466,6 +495,18 @@ def main() -> None:
         type=Path,
         default=Path("paper/coupling_modes_summary.md"),
     )
+    parser.add_argument(
+        "--apply-asym-drift",
+        action="store_true",
+        help=(
+            "If set, the dell-full and levelt-full modes activate the "
+            "matrix-exponential splitting step of the antisymmetric drift "
+            "b_asym = J_asym @ rho (via T2FreeEnergy.apply_drift_splitting). "
+            "Default off preserves numerical reproducibility of the "
+            "committed paper/hyperparam_sweep_coupling_modes.json; set to "
+            "true to exercise the feature experimentally."
+        ),
+    )
     args = parser.parse_args()
 
     sha = git_sha()
@@ -488,7 +529,7 @@ def main() -> None:
         t0 = time.time()
         per_seed: list[dict[str, Any]] = []
         for seed in SEEDS:
-            res = run_one(alpha, beta, GAMMA, mode, seed)
+            res = run_one(alpha, beta, GAMMA, mode, seed, apply_asym_drift=args.apply_asym_drift)
             per_seed.append(res)
         mean_entropy = float(np.mean([r["mean_entropy_bits"] for r in per_seed]))
         gap = float(np.mean([r["specialization_gap_bits"] for r in per_seed]))
