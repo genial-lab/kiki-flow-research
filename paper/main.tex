@@ -130,19 +130,123 @@ consolidation step $\tau$, we solve
       \tfrac{1}{2h_\tau} \sum_{i} W_2^2(\rho_i, \rho_i^\tau) \Big\},
   \label{eq:jko}
 \end{equation}
-where $F$ combines a species-specific potential, a KL prior,
-Levelt--Baddeley reaction coupling, and a Turing cross-diffusion term:
+where $F$ combines a species-specific potential, a KL prior, a
+symmetric reaction coupling, and a Turing cross-diffusion term:
 \begin{equation}
-  F[\rho] = \sum_i \int \rho_i V_i + \sum_i \mathrm{KL}(\rho_i \| \pi_i)
-          + \sum_{i,j} J_{ij} \int \rho_i \rho_j + \lambda_T \mathcal{T}[\rho].
+  F[\rho] = \underbrace{\sum_i \int \rho_i V_i
+                      + \sum_i \mathrm{KL}(\rho_i \| \pi_i)}_{\displaystyle F_{\mathrm{sep}}(\rho)}
+          + \tfrac{1}{2}\!\!\sum_{i,j} J^{\mathrm{sym}}_{ij} \!\!\int \rho_i \rho_j
+          + \lambda_T \mathcal{T}[\rho],
   \label{eq:freeenergy}
 \end{equation}
+where $J = J^{\mathrm{sym}} + J^{\mathrm{asym}}$ is the Levelt--Baddeley
+coupling matrix decomposed canonically into
+$J^{\mathrm{sym}} = \tfrac{1}{2}(J + J^{\!\top})$ and
+$J^{\mathrm{asym}} = \tfrac{1}{2}(J - J^{\!\top})$.
+On our default instantiation (Section~\ref{sec:coupling}) the
+asymmetry is structural:
+$\|J^{\mathrm{asym}}\|_F / \|J\|_F = 0.314$~%
+{\small\% from kiki\_flow\_core/species/data/dell\_baddeley\_coupling.yaml}.
+Only $J^{\mathrm{sym}}$ enters~\eqref{eq:freeenergy} because the
+antisymmetric bilinear form $\sum_{i,j} J^{\mathrm{asym}}_{ij}
+\!\int\!\rho_i\rho_j$ vanishes identically against the symmetric outer
+product. The antisymmetric component instead drives a
+non-conservative field
+\begin{equation}
+  b^{\mathrm{asym}}_i(\rho) \;=\; \sum_j J^{\mathrm{asym}}_{ij}\,\rho_j,
+  \label{eq:drift-asym}
+\end{equation}
+which has no scalar-potential representation. Our dynamics therefore
+factor into a JKO step on $F$ composed with an operator-splitting step
+on~$b = b^{\mathrm{asym}} + b^{\mathrm{phono}}$, where
+$b^{\mathrm{phono}}$ is the Baddeley phonological-loop drift formalized
+in Section~\ref{sec:phonoloop}.
 
-\subsection{Multi-scale fast/slow loop}
+\subsection{Coupling topologies: Dell and Levelt}
+\label{sec:coupling}
+
+We study two instantiations of $J$, each loaded from a YAML
+configuration so that the four-species dynamics can be compared across
+psycholinguistic architectures~%
+{\small\% from kiki\_flow\_core/species/data/\{dell,levelt\}\_baddeley\_coupling.yaml}.
+
+\paragraph{Dell topology.}
+Direct semantic-to-lexical drive
+$J_{\mathrm{lex}\leftarrow\mathrm{sem}} = 0.60$ that bypasses syntax,
+plus a weak $J_{\mathrm{syn}\leftarrow\mathrm{sem}} = 0.10$, giving the
+interactive lexical network of Dell~\cite{dell1986}.
+
+\paragraph{Levelt topology.}
+Canonical production chain $\mathrm{sem} \to \mathrm{syn}
+\to \mathrm{lex} \to \mathrm{phono}$ with balanced weights
+$J_{\mathrm{syn}\leftarrow\mathrm{sem}} = 0.45$,
+$J_{\mathrm{lex}\leftarrow\mathrm{syn}} = 0.40$,
+$J_{\mathrm{phono}\leftarrow\mathrm{lex}} = 0.50$, and the direct
+$J_{\mathrm{lex}\leftarrow\mathrm{sem}}$ reduced to $0.10$. This
+matches the staged production architecture of
+Levelt~\cite{levelt1999}.
+
+Both topologies share the Baddeley phonological-loop backedge
+$J_{\mathrm{lex}\leftarrow\mathrm{phono}} = 0.30$ and the same diagonal
+self-consolidation weights. Frobenius norms are
+$\|J_{\mathrm{Dell}}\|_F = 1.323$ and $\|J_{\mathrm{Levelt}}\|_F = 1.247$;
+the asymmetry ratios $\|J^{\mathrm{asym}}\|_F / \|J\|_F$ are $0.314$
+and $0.330$ respectively, isolating topology as the primary
+difference between the two conditions.
+
+\subsection{Empirical \texorpdfstring{$\lambda$}{lambda}-monotonicity}
+\label{sec:lambda-mono}
+
+Following \cite{conger2025monotone}, the multi-species flow is
+$\lambda$-monotone at rate $\lambda > 0$ if, for any two trajectories
+$\rho(t), \rho'(t)$ from distinct initial conditions,
+\begin{equation}
+  \frac{d}{dt} \sum_i W_2^2(\rho_i(t), \rho_i'(t))
+    \;\le\; -2\lambda \sum_i W_2^2(\rho_i(t), \rho_i'(t)).
+  \label{eq:lambda-mono}
+\end{equation}
+We verify~\eqref{eq:lambda-mono} numerically (Section~\ref{sec:exp-lambda};
+script \texttt{experiments/check\_lambda\_monotonicity.py}) on three
+independent seed pairs with $h = 2\times 10^{-3}$ and
+$n_{\mathrm{inner}} = 1$, using the Sinkhorn divergence~%
+\cite{feydy2019interpolating} to cancel the entropic bias floor
+inherent to regularized $W_2^2$. We obtain
+\begin{equation}
+  \hat\lambda \;=\; 67.79 \pm 3.78,
+  \qquad \text{std/mean} = 5.6\%,
+  \label{eq:lambda-estimate}
+\end{equation}
+all three trajectories monotone-decreasing over $50$ slow
+steps~{\small\% from paper/lambda\_monotonicity.json}. This places the
+flow inside the regime of Theorem~3.4
+of~\cite{conger2025monotone}, implying exponential contraction to a
+unique multi-species Nash equilibrium under the product Wasserstein-2
+metric.
+
+\subsection{Baddeley phono loop and multi-scale dynamics}
+\label{sec:phonoloop}
 We nest Langevin particle dynamics (fast time scale $\delta t \approx 1\,$ms)
 inside the JKO slow scale ($h_\tau \approx 1\,$h). Particles are
 histogrammed into $\rho$ at each slow step, then projected through
-Eq.~\ref{eq:jko}.
+Eq.~\ref{eq:jko}. Between slow steps, a non-conservative drift encodes
+the Baddeley phonological loop~\cite{baddeley1992working}:
+\begin{equation}
+  b^{\mathrm{phono}}_{\mathrm{phono}}(\rho)
+    \;=\; \kappa_{\mathrm{B}}\,\mathrm{clip}\!\big(\tanh(\rho_{\mathrm{phono}} - \rho_{\mathrm{lex}}),\; \pm s\big),
+  \qquad b^{\mathrm{phono}}_i = 0 \text{ for } i \neq \mathrm{phono},
+  \label{eq:phono-drift}
+\end{equation}
+where $\kappa_{\mathrm{B}}$ is the feedback strength and $s$ a
+saturation cap. Because $b^{\mathrm{phono}}$ depends non-linearly on
+two densities at once --- the phonological species and its hierarchical
+predecessor $\rho_{\mathrm{lex}}$ --- it has no scalar-potential
+representation and is structurally distinct from the linear drift
+$b^{\mathrm{asym}}$ of~\eqref{eq:drift-asym}. Together
+$b = b^{\mathrm{asym}} + b^{\mathrm{phono}}$ is the
+\emph{hierarchical non-conservative drift} carrying the causal
+production direction of the Levelt--Baddeley architecture; the
+operator-splitting scheme of \cite{gallouet2017splitting} integrates it
+exactly between JKO steps.
 
 \section{Implementation}
 \label{sec:impl}
