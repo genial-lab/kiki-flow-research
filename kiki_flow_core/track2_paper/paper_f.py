@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from kiki_flow_core.master_equation import FreeEnergy
-from kiki_flow_core.species import OrthoSpecies
+from kiki_flow_core.species import CanonicalSpecies
 from kiki_flow_core.state import FlowState
 
 
@@ -14,7 +14,7 @@ class T2FreeEnergy(FreeEnergy):
 
     def __init__(
         self,
-        species: OrthoSpecies,
+        species: CanonicalSpecies,
         potentials: dict[str, np.ndarray],
         prior: dict[str, np.ndarray],
         turing_strength: float = 0.1,

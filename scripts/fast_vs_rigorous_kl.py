@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 
 from kiki_flow_core.master_equation import JKOStep
-from kiki_flow_core.species import OrthoSpecies
+from kiki_flow_core.species import CanonicalSpecies
 from kiki_flow_core.track2_paper.full_jko_solver import FullJKOSolver
 from kiki_flow_core.track2_paper.mlx_particle_simulator import MLXParticleSimulator
 from kiki_flow_core.track2_paper.multiscale_loop import MultiscaleLoop
@@ -26,7 +26,7 @@ SEEDS = [0, 1, 2, 3, 4]
 
 
 def _build_common_setup():
-    species = OrthoSpecies()
+    species = CanonicalSpecies()
     names = species.species_names()
     support = np.linspace(-2, 2, GRID).reshape(-1, 1)
     potentials = {n: np.zeros(GRID) for n in names}

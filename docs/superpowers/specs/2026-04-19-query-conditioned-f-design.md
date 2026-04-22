@@ -93,7 +93,7 @@ $$\frac{\partial F_{(a)}}{\partial \rho_s}(k) = \log\frac{\rho_s(k)}{\pi_{\mathr
 
 $$\frac{\partial F_{(b)}}{\partial \rho_s} = -\frac{1}{\sigma^2} \left( \mathrm{embed}(q) - g_{\mathrm{JEPA}}(\rho) \right)^\top \frac{\partial g_{\mathrm{JEPA}}}{\partial \rho_s}$$
 
-**(c) Species coupling.** `λ_J Σ_{s,t} J_{st} ⟨ρ_s, ρ_t⟩`. Réutilise `J` du T2FreeEnergy (`HybridSpecies.coupling_matrix()`). Gradient analytique :
+**(c) Species coupling.** `λ_J Σ_{s,t} J_{st} ⟨ρ_s, ρ_t⟩`. Réutilise `J` du T2FreeEnergy (`MixedCanonicalSpecies.coupling_matrix()`). Gradient analytique :
 
 $$\frac{\partial F_{(c)}}{\partial \rho_s} = 2 \lambda_J \sum_{t} J_{st} \rho_t$$
 

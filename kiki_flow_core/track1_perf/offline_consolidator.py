@@ -14,7 +14,7 @@ import numpy as np
 from kiki_flow_core.hooks import AeonAdapter, MoELoraAdapter, RoutingAdapter
 from kiki_flow_core.master_equation import JKOStep
 from kiki_flow_core.modules import AdvectionDiffusion, PhonologicalLoop, ScaffoldingScheduler
-from kiki_flow_core.species import HybridSpecies
+from kiki_flow_core.species import MixedCanonicalSpecies
 from kiki_flow_core.state import FlowState
 from kiki_flow_core.track1_perf.checkpoint import load_checkpoint, save_checkpoint
 from kiki_flow_core.track1_perf.eulerian_grid_solver import EulerianGridSolver
@@ -28,7 +28,7 @@ def _bootstrap_state(
     n_grid: int,
     p_theta: np.ndarray,
 ) -> FlowState:
-    species = HybridSpecies(stack_names=stack_names)
+    species = MixedCanonicalSpecies(stack_names=stack_names)
     names = species.species_names()
     rho_uniform = np.full(n_grid, 1.0 / n_grid)
     return FlowState(
@@ -62,7 +62,7 @@ def run_once(
     else:
         state = _bootstrap_state(stack_names, n_grid, p_theta)
 
-    species = HybridSpecies(stack_names=stack_names)
+    species = MixedCanonicalSpecies(stack_names=stack_names)
     x = np.linspace(-2.0, 2.0, n_grid)
     adv_diff = AdvectionDiffusion(species=species, x_grid=x, diffusion=0.005)
     scheduler = ScaffoldingScheduler(h_min=1e-2, h_max=0.1)

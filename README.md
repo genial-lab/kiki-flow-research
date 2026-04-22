@@ -153,7 +153,7 @@ kiki-flow-research/
 │   ├── state.py                    # FlowState Pydantic v2 + invariants
 │   ├── master_equation.py          # FreeEnergy ABC + JKOStep
 │   ├── wasserstein_ops.py          # prox_w2, w2_distance, Sinkhorn
-│   ├── species/                    # OrthoSpecies, HybridSpecies
+│   ├── species/                    # CanonicalSpecies, MixedCanonicalSpecies
 │   ├── modules/                    # AdvectionDiffusion, scheduler, phono loop
 │   ├── hooks/                      # Aeon, MoE-LoRA, Routing adapters
 │   ├── telemetry/                  # StructuredLogger, Metrics

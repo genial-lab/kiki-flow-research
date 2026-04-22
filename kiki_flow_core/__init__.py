@@ -8,7 +8,7 @@ from kiki_flow_core.hooks import (
 )
 from kiki_flow_core.master_equation import FreeEnergy, JKOStep, ZeroF
 from kiki_flow_core.modules import AdvectionDiffusion, PhonologicalLoop, ScaffoldingScheduler
-from kiki_flow_core.species import HybridSpecies, OrthoSpecies, SpeciesBase
+from kiki_flow_core.species import CanonicalSpecies, MixedCanonicalSpecies, SpeciesBase
 from kiki_flow_core.state import FlowState, InvariantViolationError, assert_invariants
 from kiki_flow_core.telemetry import Metrics, StructuredLogger
 from kiki_flow_core.wasserstein_ops import prox_w2, sinkhorn_cost, w2_distance
@@ -19,13 +19,13 @@ __all__ = [
     "AeonAdapter",
     "CircuitBreakerOpenError",
     "FlowState",
+    "CanonicalSpecies",
     "FreeEnergy",
-    "HybridSpecies",
     "InvariantViolationError",
     "JKOStep",
     "Metrics",
+    "MixedCanonicalSpecies",
     "MoELoraAdapter",
-    "OrthoSpecies",
     "PhonologicalLoop",
     "RoutingAdapter",
     "ScaffoldingScheduler",

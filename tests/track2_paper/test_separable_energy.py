@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from kiki_flow_core.species import OrthoSpecies
+from kiki_flow_core.species import CanonicalSpecies
 from kiki_flow_core.state import FlowState
 from kiki_flow_core.track2_paper.paper_f import T2FreeEnergy
 from kiki_flow_core.track2_paper.paper_f_separable import SeparableEnergy
@@ -41,7 +41,7 @@ def _random_prior(rng: np.random.Generator, n: int = N_GRID) -> dict[str, np.nda
 def test_separable_equals_t2_when_j_and_turing_zero() -> None:
     """With J = 0 and turing_strength = 0, T2FreeEnergy collapses to SeparableEnergy."""
     rng = np.random.default_rng(42)
-    species = OrthoSpecies()
+    species = CanonicalSpecies()
     potentials = _random_potentials(rng)
     prior = _random_prior(rng)
     state = _make_state(rng)
@@ -78,7 +78,7 @@ def test_separable_independent_of_second_species() -> None:
     are bit-exactly invariant.
     """
     rng = np.random.default_rng(7)
-    species = OrthoSpecies()
+    species = CanonicalSpecies()
     potentials = _random_potentials(rng)
     prior = _random_prior(rng)
     state = _make_state(rng)
@@ -116,7 +116,7 @@ def test_separable_kl_is_nonnegative() -> None:
     equality iff every rho_i equals the uniform prior.
     """
     rng = np.random.default_rng(123)
-    species = OrthoSpecies()
+    species = CanonicalSpecies()
     uniform = np.full(N_GRID, 1.0 / N_GRID)
     potentials = {name: np.zeros(N_GRID) for name in SPECIES_NAMES}
     prior = {name: uniform.copy() for name in SPECIES_NAMES}

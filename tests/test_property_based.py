@@ -18,7 +18,7 @@ from kiki_flow_core.master_equation import JKOStep, ZeroF
 from kiki_flow_core.modules.advection_diffusion import AdvectionDiffusion
 from kiki_flow_core.modules.phonological_loop import PhonologicalLoop
 from kiki_flow_core.modules.scaffolding_scheduler import ScaffoldingScheduler
-from kiki_flow_core.species import HybridSpecies, OrthoSpecies
+from kiki_flow_core.species import CanonicalSpecies, MixedCanonicalSpecies
 from kiki_flow_core.state import FlowState, InvariantViolationError, assert_invariants
 
 # Tolerances (named per tests/CLAUDE.md discipline)
@@ -150,8 +150,8 @@ def test_advection_diffusion_preserves_mass_and_sign(
 
 
 def test_ortho_species_coupling_shape_always_4x4() -> None:
-    """OrthoSpecies.coupling_matrix() must always be (4, 4)."""
-    s = OrthoSpecies()
+    """CanonicalSpecies.coupling_matrix() must always be (4, 4)."""
+    s = CanonicalSpecies()
     j = s.coupling_matrix()
     assert j.shape == (4, 4)
     assert np.isfinite(j).all()
@@ -163,9 +163,9 @@ def test_ortho_species_coupling_shape_always_4x4() -> None:
     seed=st.integers(min_value=0, max_value=1000),
 )
 def test_hybrid_species_coupling_tensor_shape_invariant(n_stacks: int, seed: int) -> None:
-    """HybridSpecies.coupling_tensor() must have shape (4, n_stacks, 4, n_stacks)."""
+    """MixedCanonicalSpecies.coupling_tensor() must have shape (4, n_stacks, 4, n_stacks)."""
     stacks = [f"stack_{i}" for i in range(n_stacks)]
-    s = HybridSpecies(stack_names=stacks, projection_init="random", seed=seed)
+    s = MixedCanonicalSpecies(stack_names=stacks, projection_init="random", seed=seed)
     t = s.coupling_tensor()
     assert t.shape == (4, n_stacks, 4, n_stacks)
     assert np.isfinite(t).all()

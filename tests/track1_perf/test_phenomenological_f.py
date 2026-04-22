@@ -1,13 +1,13 @@
 import numpy as np
 import pytest
 
-from kiki_flow_core.species import HybridSpecies
+from kiki_flow_core.species import MixedCanonicalSpecies
 from kiki_flow_core.state import FlowState
 from kiki_flow_core.track1_perf.phenomenological_f import T1FreeEnergy
 
 
-def make_state(stacks: list[str], n_grid: int = 8) -> tuple[FlowState, HybridSpecies]:
-    species = HybridSpecies(stack_names=stacks)
+def make_state(stacks: list[str], n_grid: int = 8) -> tuple[FlowState, MixedCanonicalSpecies]:
+    species = MixedCanonicalSpecies(stack_names=stacks)
     names = species.species_names()
     rho = {name: np.full(n_grid, 1.0 / n_grid) for name in names}
     return (

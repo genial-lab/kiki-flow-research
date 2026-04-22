@@ -1,4 +1,4 @@
-"""4-species orthophonic decomposition (phono, lex, syntax, sem) with fixed Levelt-Baddeley J."""
+"""Canonical 4-species decomposition (phono, lex, syntax, sem) with fixed Levelt-Baddeley J."""
 
 from __future__ import annotations
 
@@ -15,11 +15,16 @@ _COUPLING_VARIANTS: dict[str, str] = {
 }
 
 
-class OrthoSpecies(SpeciesBase):
-    """Levelt-Baddeley language production model.
+class CanonicalSpecies(SpeciesBase):
+    """Canonical four-species Levelt-Baddeley decomposition (phono, lex, syntax, sem).
 
-    Four species (phono, lex, syntax, sem) with literature-derived coupling
-    loaded from ``kiki_flow_core/species/data/``.
+    The densities live on a shared spatial grid; no L2 orthogonality is
+    imposed. The term "canonical" is functional, referring to these being the
+    four production-stage species of the Levelt 1999 architecture, not
+    geometric.
+
+    Literature-derived coupling is loaded from
+    ``kiki_flow_core/species/data/``.
 
     Parameters
     ----------

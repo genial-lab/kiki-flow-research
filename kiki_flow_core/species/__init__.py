@@ -1,7 +1,7 @@
 """Species definitions for the kiki-flow activation field."""
 
 from kiki_flow_core.species.base import SpeciesBase
-from kiki_flow_core.species.hybrid_ortho_stacks import HybridSpecies
-from kiki_flow_core.species.ortho_baddeley_levelt import OrthoSpecies
+from kiki_flow_core.species.canonical_species import CanonicalSpecies
+from kiki_flow_core.species.mixed_canonical_stacks import MixedCanonicalSpecies
 
-__all__ = ["HybridSpecies", "OrthoSpecies", "SpeciesBase"]
+__all__ = ["CanonicalSpecies", "MixedCanonicalSpecies", "SpeciesBase"]

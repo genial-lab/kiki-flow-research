@@ -18,7 +18,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from kiki_flow_core.master_equation import JKOStep  # noqa: E402
-from kiki_flow_core.species import OrthoSpecies  # noqa: E402
+from kiki_flow_core.species import CanonicalSpecies  # noqa: E402
 from kiki_flow_core.track2_paper.mlx_particle_simulator import MLXParticleSimulator  # noqa: E402
 from kiki_flow_core.track2_paper.multiscale_loop import MultiscaleLoop  # noqa: E402
 from kiki_flow_core.track2_paper.paper_f import T2FreeEnergy  # noqa: E402
@@ -32,7 +32,7 @@ GAMMAS = [0.0, 1.0, 5.0]
 
 
 def run_one(alpha: float, beta: float, gamma: float) -> dict[str, float]:
-    species = OrthoSpecies()
+    species = CanonicalSpecies()
     names = species.species_names()
     support = np.linspace(-2, 2, GRID).reshape(-1, 1)
     x = support[:, 0]

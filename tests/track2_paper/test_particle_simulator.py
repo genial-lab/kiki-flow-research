@@ -1,6 +1,6 @@
 import numpy as np
 
-from kiki_flow_core.species import OrthoSpecies
+from kiki_flow_core.species import CanonicalSpecies
 from kiki_flow_core.track2_paper.particle_simulator import ParticleSimulator
 
 
@@ -9,7 +9,7 @@ def _zero_potential(x: np.ndarray) -> np.ndarray:
 
 
 def test_particle_simulator_conserves_count():
-    species = OrthoSpecies()
+    species = CanonicalSpecies()
     sim = ParticleSimulator(species=species, n_particles=500, latent_dim=2, seed=0)
     particles = sim.initialize()
     assert particles["positions"].shape == (500, 2)  # noqa: PLR2004
@@ -18,7 +18,7 @@ def test_particle_simulator_conserves_count():
 
 
 def test_particle_simulator_deterministic_with_seed():
-    species = OrthoSpecies()
+    species = CanonicalSpecies()
     sim1 = ParticleSimulator(species=species, n_particles=100, latent_dim=2, seed=42)
     sim2 = ParticleSimulator(species=species, n_particles=100, latent_dim=2, seed=42)
     p1 = sim1.initialize()
@@ -27,7 +27,7 @@ def test_particle_simulator_deterministic_with_seed():
 
 
 def test_particle_simulator_species_tags_preserved():
-    species = OrthoSpecies()
+    species = CanonicalSpecies()
     sim = ParticleSimulator(species=species, n_particles=200, latent_dim=2, seed=1)
     particles = sim.initialize()
     assert len(particles["species_tags"]) == 200  # noqa: PLR2004

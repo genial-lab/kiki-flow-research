@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from kiki_flow_core.master_equation import FreeEnergy
-from kiki_flow_core.species import HybridSpecies
+from kiki_flow_core.species import MixedCanonicalSpecies
 from kiki_flow_core.state import FlowState
 
 
@@ -17,7 +17,7 @@ class T1FreeEnergy(FreeEnergy):
         alpha: float,
         beta: float,
         gamma: float,
-        species: HybridSpecies,
+        species: MixedCanonicalSpecies,
         v_curr: np.ndarray,
     ) -> None:
         self.alpha = alpha

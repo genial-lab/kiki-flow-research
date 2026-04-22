@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 from safetensors.numpy import save_file
 
-from kiki_flow_core.species import OrthoSpecies
+from kiki_flow_core.species import CanonicalSpecies
 from kiki_flow_core.track2_paper.full_jko_solver import FullJKOSolver
 from kiki_flow_core.track2_paper.multiscale_loop import _particles_to_flow_state
 from kiki_flow_core.track2_paper.paper_f import T2FreeEnergy
@@ -22,7 +22,7 @@ STATE_DIM = 16
 N_PAIRS = 100
 SEED = 0
 
-species = OrthoSpecies()
+species = CanonicalSpecies()
 names = species.species_names()
 support = np.linspace(-2.0, 2.0, STATE_DIM).reshape(-1, 1)
 potentials = {n: np.zeros(STATE_DIM) for n in names}

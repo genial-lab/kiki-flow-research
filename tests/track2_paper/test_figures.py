@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 
 from kiki_flow_core.master_equation import ZeroF
-from kiki_flow_core.species import OrthoSpecies
+from kiki_flow_core.species import CanonicalSpecies
 from kiki_flow_core.state import FlowState
 from kiki_flow_core.track2_paper.figures import (
     make_continual_learning_gap,
@@ -17,7 +17,7 @@ from kiki_flow_core.track2_paper.figures import (
 def fake_trajectory() -> list[FlowState]:
     return [
         FlowState(
-            rho={n: np.array([0.5, 0.5]) for n in OrthoSpecies().species_names()},
+            rho={n: np.array([0.5, 0.5]) for n in CanonicalSpecies().species_names()},
             P_theta=np.zeros(4),
             mu_curr=np.array([1.0]),
             tau=i,

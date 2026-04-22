@@ -1,6 +1,6 @@
 import numpy as np
 
-from kiki_flow_core.species import OrthoSpecies
+from kiki_flow_core.species import CanonicalSpecies
 from kiki_flow_core.track2_paper.full_jko_solver import FullJKOSolver
 from kiki_flow_core.track2_paper.multiscale_loop import MultiscaleLoop
 from kiki_flow_core.track2_paper.paper_f import T2FreeEnergy
@@ -8,7 +8,7 @@ from kiki_flow_core.track2_paper.particle_simulator import ParticleSimulator
 
 
 def test_multiscale_loop_produces_manifest():
-    species = OrthoSpecies()
+    species = CanonicalSpecies()
     sim = ParticleSimulator(species=species, n_particles=200, latent_dim=2, seed=0)
     n = 8
     potentials = {name: np.zeros(n) for name in species.species_names()}

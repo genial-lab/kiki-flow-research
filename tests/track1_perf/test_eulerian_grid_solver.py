@@ -2,13 +2,13 @@ import numpy as np
 
 from kiki_flow_core.master_equation import JKOStep
 from kiki_flow_core.modules import AdvectionDiffusion, PhonologicalLoop, ScaffoldingScheduler
-from kiki_flow_core.species import HybridSpecies
+from kiki_flow_core.species import MixedCanonicalSpecies
 from kiki_flow_core.state import FlowState, assert_invariants
 from kiki_flow_core.track1_perf.eulerian_grid_solver import EulerianGridSolver
 from kiki_flow_core.track1_perf.phenomenological_f import T1FreeEnergy
 
 
-def make_initial(species: HybridSpecies, n_grid: int = 16) -> FlowState:
+def make_initial(species: MixedCanonicalSpecies, n_grid: int = 16) -> FlowState:
     names = species.species_names()
     x = np.linspace(-1, 1, n_grid)
     rho = np.exp(-0.5 * (x / 0.3) ** 2)
@@ -23,7 +23,7 @@ def make_initial(species: HybridSpecies, n_grid: int = 16) -> FlowState:
 
 
 def test_eulerian_step_increments_tau_and_preserves_invariants():
-    species = HybridSpecies(stack_names=["code"])
+    species = MixedCanonicalSpecies(stack_names=["code"])
     state = make_initial(species)
     x = np.linspace(-1, 1, 16)
     adv_diff = AdvectionDiffusion(species=species, x_grid=x, diffusion=0.001)

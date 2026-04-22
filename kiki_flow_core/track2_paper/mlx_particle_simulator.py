@@ -8,7 +8,7 @@ from typing import TypedDict
 import mlx.core as mx
 import numpy as np
 
-from kiki_flow_core.species import OrthoSpecies
+from kiki_flow_core.species import CanonicalSpecies
 
 
 class MLXParticleBatch(TypedDict):
@@ -27,7 +27,7 @@ class MLXParticleSimulator:
 
     def __init__(
         self,
-        species: OrthoSpecies,
+        species: CanonicalSpecies,
         n_particles: int,
         latent_dim: int = 2,
         seed: int = 0,

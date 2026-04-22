@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 
 from kiki_flow_core.master_equation import JKOStep
-from kiki_flow_core.species import OrthoSpecies
+from kiki_flow_core.species import CanonicalSpecies
 from kiki_flow_core.track2_paper.mlx_particle_simulator import MLXParticleSimulator
 from kiki_flow_core.track2_paper.multiscale_loop import MultiscaleLoop
 from kiki_flow_core.track2_paper.paper_f import T2FreeEnergy
@@ -28,7 +28,7 @@ GAMMAS = [0.0, 1.0, 5.0]
 
 
 def run_one(alpha: float, beta: float, gamma: float) -> dict[str, float]:
-    species = OrthoSpecies()
+    species = CanonicalSpecies()
     names = species.species_names()
     support = np.linspace(-2, 2, GRID).reshape(-1, 1)
     x = support[:, 0]

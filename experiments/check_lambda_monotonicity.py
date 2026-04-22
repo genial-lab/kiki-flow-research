@@ -42,7 +42,7 @@ import numpy as np  # noqa: E402
 import ot  # noqa: E402
 
 from kiki_flow_core.master_equation import JKOStep  # noqa: E402
-from kiki_flow_core.species import OrthoSpecies  # noqa: E402
+from kiki_flow_core.species import CanonicalSpecies  # noqa: E402
 from kiki_flow_core.state import FlowState  # noqa: E402
 from kiki_flow_core.track2_paper.paper_f import T2FreeEnergy  # noqa: E402
 from kiki_flow_core.wasserstein_ops import sinkhorn_cost, w2_distance  # noqa: E402
@@ -282,7 +282,7 @@ def run(
     species_kwargs: dict[str, Any] = {}
     if coupling_variant is not None:
         species_kwargs["coupling_variant"] = coupling_variant
-    species = OrthoSpecies(**species_kwargs)
+    species = CanonicalSpecies(**species_kwargs)
     names = species.species_names()
 
     support = np.linspace(-2.0, 2.0, grid_size).reshape(-1, 1)
@@ -411,7 +411,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--coupling-variant",
         type=str,
         default=None,
-        help="OrthoSpecies variant to load (dell/levelt). Default: use loader default.",
+        help="CanonicalSpecies variant to load (dell/levelt). Default: use loader default.",
     )
     parser.add_argument("--grid-size", type=int, default=64)
     parser.add_argument(

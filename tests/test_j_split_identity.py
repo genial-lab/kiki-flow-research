@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from kiki_flow_core.species import OrthoSpecies
+from kiki_flow_core.species import CanonicalSpecies
 from kiki_flow_core.track2_paper.paper_f import T2FreeEnergy
 
 MACHINE_ATOL = 1e-14
@@ -28,7 +28,7 @@ def _random_simplex_rhos(n_species: int, grid: int, seed: int) -> list[np.ndarra
 
 
 def _instantiate_default_f(grid: int) -> T2FreeEnergy:
-    species = OrthoSpecies()
+    species = CanonicalSpecies()
     names = species.species_names()
     potentials = {n: np.zeros(grid) for n in names}
     prior = {n: np.full(grid, 1.0 / grid) for n in names}

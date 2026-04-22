@@ -8,7 +8,7 @@ import numpy as np
 from safetensors.numpy import save_file
 
 from kiki_flow_core.master_equation import JKOStep
-from kiki_flow_core.species import HybridSpecies
+from kiki_flow_core.species import MixedCanonicalSpecies
 from kiki_flow_core.state import FlowState
 from kiki_flow_core.track1_perf.phenomenological_f import T1FreeEnergy
 
@@ -23,7 +23,7 @@ EXPECTED_DIM = 128
 assert TARGET_DIM == EXPECTED_DIM, f"expected {EXPECTED_DIM}, got {TARGET_DIM}"
 N_PAIRS = 100
 stacks = [f"s{i:02d}" for i in range(N_STACKS)]
-species = HybridSpecies(stack_names=stacks)
+species = MixedCanonicalSpecies(stack_names=stacks)
 names = species.species_names()
 rng = np.random.default_rng(0)
 

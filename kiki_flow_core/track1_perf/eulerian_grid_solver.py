@@ -1,4 +1,4 @@
-"""Orchestrates one T1 consolidation step over the full HybridSpecies state tensor."""
+"""Orchestrates one T1 consolidation step over the full MixedCanonicalSpecies state tensor."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import numpy as np
 
 from kiki_flow_core.master_equation import JKOStep
 from kiki_flow_core.modules import AdvectionDiffusion, PhonologicalLoop, ScaffoldingScheduler
-from kiki_flow_core.species import HybridSpecies
+from kiki_flow_core.species import MixedCanonicalSpecies
 from kiki_flow_core.state import FlowState
 
 
@@ -15,7 +15,7 @@ class EulerianGridSolver:
 
     def __init__(
         self,
-        species: HybridSpecies,
+        species: MixedCanonicalSpecies,
         scheduler: ScaffoldingScheduler,
         adv_diff: AdvectionDiffusion,
         jko: JKOStep,

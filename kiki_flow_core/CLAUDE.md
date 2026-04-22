@@ -12,8 +12,8 @@ from `kiki_flow_core/__init__.py`; adding a public symbol means updating
   strategy-pattern `prox_fn` (injectable MLX backend without circular import).
 - `wasserstein_ops.py` — POT-backed `sinkhorn_cost`, `w2_distance`, `prox_w2`.
   Log-domain Sinkhorn only.
-- `species/` — `SpeciesBase`, `OrthoSpecies`, `HybridSpecies`. Coupling
-  coefficients live in `species/data/levelt_baddeley_coupling.yaml`.
+- `species/` — `SpeciesBase`, `CanonicalSpecies`, `MixedCanonicalSpecies`.
+  Coupling coefficients live in `species/data/levelt_baddeley_coupling.yaml`.
 - `modules/` — `AdvectionDiffusion`, `PhonologicalLoop`, `ScaffoldingScheduler`.
 - `hooks/` — adapters for Aeon, MoE-LoRA, Routing. Advisory-only; must return
   `None` on failure (never raise into host process).

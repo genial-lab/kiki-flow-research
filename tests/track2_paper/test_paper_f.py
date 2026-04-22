@@ -1,6 +1,6 @@
 import numpy as np
 
-from kiki_flow_core.species import OrthoSpecies
+from kiki_flow_core.species import CanonicalSpecies
 from kiki_flow_core.state import FlowState
 from kiki_flow_core.track2_paper.paper_f import T2FreeEnergy
 
@@ -22,7 +22,7 @@ def make_state(n: int = 8) -> FlowState:
 
 
 def test_t2_f_has_all_four_terms():
-    species = OrthoSpecies()
+    species = CanonicalSpecies()
     state = make_state()
     n = 8
     f = T2FreeEnergy(
@@ -36,7 +36,7 @@ def test_t2_f_has_all_four_terms():
 
 
 def test_t2_f_kl_zero_on_prior_match():
-    species = OrthoSpecies()
+    species = CanonicalSpecies()
     state = make_state()
     n = 8
     prior = {n_: state.rho[n_].copy() for n_ in state.rho}

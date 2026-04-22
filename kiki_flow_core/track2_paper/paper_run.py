@@ -10,7 +10,7 @@ import numpy as np
 from safetensors.numpy import save_file
 
 from kiki_flow_core.master_equation import JKOStep
-from kiki_flow_core.species import OrthoSpecies
+from kiki_flow_core.species import CanonicalSpecies
 from kiki_flow_core.state import FlowState
 from kiki_flow_core.track2_paper.figures.continual_learning_gap import (
     make_continual_learning_gap,
@@ -99,7 +99,7 @@ def run_paper(
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    species = OrthoSpecies()
+    species = CanonicalSpecies()
     names = species.species_names()
     support = np.linspace(-2, 2, grid_size).reshape(-1, 1)
     potentials = {n: np.zeros(grid_size) for n in names}
