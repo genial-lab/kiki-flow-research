@@ -705,23 +705,36 @@ which specialization emerges'', a distinction we argue is
 empirically meaningful and deserves its own quantitative treatment
 separate from the steady-state reporting in \S\ref{sec:exp}.
 
-\paragraph{Asymmetric drift not integrated.} Eq.~\eqref{eq:drift-asym}
-defines $b^{\mathrm{asym}} = J^{\mathrm{asym}}\rho$ as a linear
-non-conservative drift, but the current solver does not apply a
-second splitting pass for it: the JKO step sees only the
-$J^{\mathrm{sym}}$ component of Eq.~\eqref{eq:freeenergy}, and the
-multiscale loop integrates $b^{\mathrm{phono}}$ but not
-$b^{\mathrm{asym}}$. The coupling-modes ablation reflects this:
+\paragraph{Asymmetric drift: opt-in splitting.}
+Eq.~\eqref{eq:drift-asym} defines $b^{\mathrm{asym}} =
+J^{\mathrm{asym}}\rho$ as a linear non-conservative drift, which is
+\emph{not} applied by the default JKO solver: the gradient step
+sees only the $J^{\mathrm{sym}}$ component of
+Eq.~\eqref{eq:freeenergy} and the multiscale loop integrates
+$b^{\mathrm{phono}}$ but not $b^{\mathrm{asym}}$. The coupling-modes
+ablation of Table~\ref{sec:coupling-ablation} reflects this:
 \textsc{symmetric-*} and \textsc{*-full} modes coincide to six
-decimals. Adding a linear-drift splitting step in the style of
-\cite{gallouet2017splitting} is a natural extension --- it would
-re-activate the effect of the $31.4\%$ of $\|J\|_F$ carried by
-$J^{\mathrm{asym}}$ and could shift the transient contraction rate
-$\hat\lambda$ without necessarily shifting the stationary entropy.
-We defer this to future work because the correct discretization
-(mass-preserving forward Euler vs.\ semi-Lagrangian advection vs.\
-matrix-exponential integrator) is not uniquely determined by the
-formalism alone and merits its own numerical study.
+decimals. We prototyped the corresponding splitting step as
+$M = \exp(h_d J^{\mathrm{asym}})$ applied per grid cell (a four-term
+Taylor approximation at $h_d = 10^{-2}$; see
+\texttt{T2FreeEnergy.apply\_drift\_splitting}), opt-in through the
+sweep's \texttt{-{}-apply-asym-drift} flag. At the canonical
+$(\alpha, \beta) = (10, 1)$, activating the splitting shifts
+\textsc{dell-full}'s stationary entropy from $1.9675$ bits to
+$1.9753$ bits, a paired shift $\Delta \hat H = +0.0078$ with
+$\sigma_{\mathrm{paired}} \approx 1.3 \times 10^{-4}$ over five
+seeds (paired $t \approx 119$): small in absolute magnitude but
+systematic, and qualitatively consistent with the coupling pushing
+the flow \emph{slightly away from} specialization rather than
+towards it. Propagating the splitting through the full 45-cell
+sweep and into the $\hat\lambda$ measurement of
+\S\ref{sec:lambda-mono} is left as a follow-up run; the default
+results reported in this paper correspond to the non-splitting
+path for reproducibility against the committed
+\texttt{paper/hyperparam\_sweep\_coupling\_modes.json}. The correct
+discretization (mass-preserving forward Euler vs.\ semi-Lagrangian
+advection vs.\ the matrix-exponential choice prototyped here) is
+itself a numerical-analysis question left for future study.
 
 \paragraph{Integration.} The T3 surrogate passes the latency SLO but has
 not been stress-tested under concurrent load; we are currently wiring it
