@@ -2,10 +2,15 @@
 \label{sec:method-overview}
 
 We model the cognitive state of a French speaker as a tuple
-$\rho = (\rho_{\mathrm{phono}}, \rho_{\mathrm{sem}},
-\rho_{\mathrm{lex}}, \rho_{\mathrm{syntax}}) \in (\Delta^{32})^4$
+$\rho = (\rho_{\mathrm{phono}}, \rho_{\mathrm{lex}},
+\rho_{\mathrm{syntax}}, \rho_{\mathrm{sem}}) \in (\Delta^{32})^4$
 --- four discrete probability simplices, one per Levelt-Baddeley
-species, each ranging over 32 activation stacks. A French query
+species, each ranging over 32 activation stacks. The species index
+ordering $(\mathrm{phono}, \mathrm{lex}, \mathrm{syntax},
+\mathrm{sem})$ is the canonical order used in
+\texttt{kiki\_flow\_core/species/data/dell\_baddeley\_coupling.yaml}
+and matches the $J_{ij}$ indexing of the companion
+paper~\cite{saillant2026kikiflow}. A French query
 $q$ is encoded by a text encoder $f_\theta$ into a 384-dimensional
 embedding. The objective is a free energy $F(\rho, q)$ whose
 gradient drives a JKO step that produces a state $\rho'$
